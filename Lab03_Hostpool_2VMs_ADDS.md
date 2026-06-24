@@ -163,7 +163,8 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
 
 1. **RBAC de login no SO:** ao contrário do cenário Entra-join, hosts AD DS-joined **não** exigem o papel "Virtual Machine User Login" para o login no SO (a autorização é via AD). Mesmo assim, o usuário precisa ter direito de logon (membro de *Remote Desktop Users*, que o AVD configura).
 2. **Atribuir ao Application Group (obrigatório para o recurso aparecer):**
-   - **Azure Virtual Desktop → Application groups → `vdag-avd-prd-cin-002`** → **Assignments → + Add** → selecione `joao.teste` (a identidade **sincronizada** no Entra) → **Select**.
+   - **Boa prática — use um grupo:** no AD (ADUC), crie um grupo de segurança `grp-avd-usuarios` na OU `AVD`, adicione os usuários e deixe o **Entra Connect** sincronizá-lo. Assim você publica para o grupo, não usuário a usuário.
+   - **Azure Virtual Desktop → Application groups → `vdag-avd-prd-cin-002`** → **Assignments → + Add** → selecione o grupo **`grp-avd-usuarios`** (a identidade **sincronizada** no Entra) → **Select**.
 
 ---
 
@@ -196,6 +197,22 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
 | Usuário não loga ("conta não existe") | Usuário não sincronizado para o Entra | Force `Start-ADSyncSyncCycle -PolicyType Delta` (Parte D) |
 | Recurso não aparece no cliente | Falta atribuição no App Group | Refaça Parte F |
 | Login pede senha mas falha | UPN usado no login difere do UPN no Entra | Use o UPN exato mostrado em Entra ID → Users |
+
+---
+
+## Parte H — Administração e diagnóstico
+
+### H.1 — Operação do host pool
+As mesmas consoles do Lab 01 valem aqui: **Host pool → Sessions** (ver usuários conectados, *Send message*, *Disconnect*, *Log off*) e **Session hosts** (status, agente, **drain mode** para manutenção). Reveja a **Parte G do Lab 01** para o passo a passo da operação.
+
+### H.2 — Onde buscar logs (cenário AD DS)
+| Sintoma | Onde olhar | O que procurar |
+|---------|-----------|----------------|
+| Host não ingressa no domínio | Na VM: *Event Viewer →* `Windows Logs → System` e o arquivo `C:\Windows\debug\NetSetup.LOG` | Erro de DNS, credencial ou OU no domain join |
+| Usuário não aparece/loga | **Entra ID → Users** (sync) e, no DC: `Start-ADSyncSyncCycle -PolicyType Delta` | Usuário não sincronizado / UPN divergente |
+| Falha de conexão AVD | **Entra ID → Sign-in logs** + **Host pool → Insights** (se Log Analytics ligado) | MFA/Conditional Access; estado do agente AVD |
+| Resolução de nomes | Na VM: `nslookup avdlab.local` e `ipconfig /all` (DNS deve ser 10.50.3.4) | DNS da VNet apontando ao DC |
+| Saúde do domínio | No DC: `dcdiag` e `repadmin /showrepl` | Erros do controlador de domínio |
 
 ---
 

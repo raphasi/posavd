@@ -187,6 +187,24 @@ Se você tiver um host pool **Personal** e quiser agendar desligamento por inati
 
 ---
 
+## Parte H — Monitoramento e diagnóstico do Autoscale
+
+### H.1 — Acompanhar as decisões do Autoscale
+1. **Scaling plans → `vdscaling-avd-prd-cin-001` → Diagnostic settings → + Add diagnostic setting** → envie os logs para o **Log Analytics** `log-avd-prd-cin-001`.
+2. Em **Log Analytics → Logs**, consulte a tabela `WVDAutoscaleEvaluationPooled` para ver, por avaliação, quantos hosts foram ligados/desligados e **por quê**.
+3. **Host pool → Insights** (workbook nativo do AVD) mostra sessões, hosts disponíveis e uso ao longo do dia.
+
+### H.2 — Onde buscar logs quando "não liga/desliga"
+| Sintoma | Onde olhar | O que procurar |
+|---------|-----------|----------------|
+| Hosts não ligam/desligam | **Subscription → IAM** | Função **Power On/Off Contributor** no SP **Azure Virtual Desktop** (Parte A) |
+| Plano não age | **Scaling plan → Host pool assignments** | `Autoscale = Enabled` no host pool certo |
+| Decisões inesperadas | **Log Analytics →** `WVDAutoscaleEvaluationPooled` | Thresholds / min % por fase e horário avaliado |
+| Disparo em horário errado | **Scaling plan → Properties** | **Time zone** = (UTC-03:00) Brasília |
+| Usuário deslogado sem aviso | Configuração do **Ramp-down** | Wait time + Notification message |
+
+---
+
 ## Discussão para a aula — economia
 Com expediente 07:00–18:00 em dias úteis, hosts ligados ~11h/dia × 5 dias ≈ **55h/semana** vs **168h** se ficassem sempre ligados — **~67% de redução** no custo de compute dos session hosts. Reforce: o **storage (FSLogix)** continua sendo cobrado; o Autoscale economiza **compute**, não armazenamento.
 

@@ -220,5 +220,17 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
 
 ---
 
+## 🔎 Diagnóstico — onde buscar logs da imagem
+
+| Etapa | Onde olhar | O que procurar |
+|-------|-----------|----------------|
+| Sysprep falhou | `C:\Windows\System32\Sysprep\Panther\setuperr.log` e `setupact.log` | Pacote Appx por-usuário que impede o `/generalize` |
+| Idioma/teclado não aplicou | Na VM: `Get-WinSystemLocale`, `Get-WinUserLanguageList`, `Get-WinHomeLocation` | Valores diferentes de `pt-BR` / ABNT2 / GeoId `32` |
+| Captura sem opção "Generalized" | Estado da VM no portal | VM precisa estar **Stopped (deallocated)** após o Sysprep |
+| GPO não aplica no host | No host: `gpresult /r` e *Event Viewer →* `System` (origem GroupPolicy) | Host fora da OU `AVD` ou sem linha de visão ao DC |
+| Replicação lenta da imagem | **Compute Gallery → Image version → Replication** | Status de replicação por região |
+
+---
+
 ## Próximo lab
 ➡️ **Lab 05 — FSLogix integrado ao AD DS com Private Endpoints**, usando os hosts desta estrutura (idealmente já com a imagem deste lab).

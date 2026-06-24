@@ -23,6 +23,8 @@ Seis laboratórios **passo a passo via Portal do Azure** (portal-first), com scr
 > 🧭 **Não sabe qual trilha seguir?** Comece pelo [**Guia de decisão — Entra ID vs AD DS**](00_Guia_Decisao_Identidade_Entra_vs_ADDS.md).
 >
 > 🎬 **Quer entender o que acontece numa conexão?** Veja o [**Fluxo de conexão AVD (diagrama de sequência)**](00_Fluxo_de_Conexao_AVD.md).
+>
+> 🧩 **Confuso com Workspace / App Group / Host Pool / Hosts?** Veja a [**Anatomia do AVD (componentes e função de cada um)**](00_Componentes_AVD_Workspace_HostPool.md).
 
 ## 🧭 Trilha de laboratórios
 

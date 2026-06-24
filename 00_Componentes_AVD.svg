@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 880" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="12" markerHeight="12" refX="9" refY="3.5" orient="auto">
+      <path d="M0,0 L9,3.5 L0,7 Z" fill="#5B6B81"/>
+    </marker>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#243A5E" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1000" height="880" fill="#F4F8FC"/>
+  <text x="500" y="42" text-anchor="middle" font-size="26" font-weight="700" fill="#243A5E">Anatomia do Azure Virtual Desktop</text>
+  <text x="500" y="68" text-anchor="middle" font-size="14.5" fill="#5B6B81">Como Workspace, Application Group, Host Pool e Session Hosts se conectam — e a função de cada um</text>
+
+  <!-- ===== WORKSPACE ===== -->
+  <g filter="url(#sh)">
+    <rect x="320" y="96" width="440" height="92" rx="10" fill="#FFFFFF" stroke="#E3E9F0"/>
+    <rect x="320" y="96" width="8" height="92" rx="4" fill="#0078D4"/>
+  </g>
+  <!-- icon: window -->
+  <g transform="translate(346,118)">
+    <rect x="0" y="0" width="46" height="38" rx="4" fill="#0078D4"/>
+    <rect x="0" y="0" width="46" height="11" rx="4" fill="#005A9E"/>
+    <rect x="5" y="17" width="16" height="16" rx="2" fill="#9FE0FF"/>
+    <rect x="25" y="17" width="16" height="16" rx="2" fill="#50E6FF"/>
+  </g>
+  <text x="408" y="126" font-size="17" font-weight="700" fill="#243A5E">Workspace</text>
+  <text x="408" y="146" font-size="12.5" fill="#0078D4">vdws-avd-prd-cin-001</text>
+  <text x="408" y="168" font-size="12.5" fill="#5B6B81">A “vitrine” que o usuário vê no cliente AVD —</text>
+  <text x="408" y="183" font-size="12.5" fill="#5B6B81">agrupa um ou mais Application Groups.</text>
+
+  <!-- arrow Workspace -> App Group -->
+  <line x1="540" y1="188" x2="540" y2="228" stroke="#5B6B81" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ===== USERS / GROUPS (left) ===== -->
+  <g filter="url(#sh)">
+    <rect x="40" y="238" width="232" height="92" rx="10" fill="#FFFFFF" stroke="#E3E9F0"/>
+    <rect x="40" y="238" width="8" height="92" rx="4" fill="#038387"/>
+  </g>
+  <g transform="translate(66,262)">
+    <circle cx="14" cy="12" r="9" fill="#038387"/>
+    <path d="M-2,44 a16,16 0 0 1 32,0 z" fill="#038387"/>
+    <circle cx="34" cy="16" r="7" fill="#5CC8C8"/>
+    <path d="M22,44 a12,12 0 0 1 24,0 z" fill="#5CC8C8"/>
+  </g>
+  <text x="120" y="268" font-size="15.5" font-weight="700" fill="#243A5E">Usuários e Grupos</text>
+  <text x="120" y="288" font-size="12.5" fill="#038387">grp-avd-usuarios</text>
+  <text x="120" y="309" font-size="12" fill="#5B6B81">Quem pode usar o AVD.</text>
+  <text x="120" y="324" font-size="12" fill="#5B6B81">Atribuídos ao App Group.</text>
+  <!-- arrow Users -> App Group -->
+  <line x1="272" y1="284" x2="318" y2="284" stroke="#5B6B81" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="295" y="276" text-anchor="middle" font-size="10.5" fill="#5B6B81">assign</text>
+
+  <!-- ===== APPLICATION GROUP ===== -->
+  <g filter="url(#sh)">
+    <rect x="320" y="238" width="440" height="92" rx="10" fill="#FFFFFF" stroke="#E3E9F0"/>
+    <rect x="320" y="238" width="8" height="92" rx="4" fill="#8661C5"/>
+  </g>
+  <g transform="translate(346,258)">
+    <rect x="0" y="0" width="20" height="20" rx="3" fill="#8661C5"/>
+    <rect x="26" y="0" width="20" height="20" rx="3" fill="#B49AE0"/>
+    <rect x="0" y="26" width="20" height="20" rx="3" fill="#B49AE0"/>
+    <rect x="26" y="26" width="20" height="20" rx="3" fill="#8661C5"/>
+  </g>
+  <text x="408" y="266" font-size="17" font-weight="700" fill="#243A5E">Application Group</text>
+  <text x="408" y="286" font-size="12.5" fill="#8661C5">vdag-avd-prd-cin-001  ·  tipo Desktop ou RemoteApp</text>
+  <text x="408" y="308" font-size="12.5" fill="#5B6B81">O QUE é publicado (desktop completo ou apps) e</text>
+  <text x="408" y="323" font-size="12.5" fill="#5B6B81">PARA QUEM (atribuição de usuários/grupos).</text>
+
+  <!-- arrow App Group -> Host Pool -->
+  <line x1="540" y1="330" x2="540" y2="372" stroke="#5B6B81" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="556" y="358" font-size="10.5" fill="#5B6B81">vincula 1 host pool</text>
+
+  <!-- ===== HOST POOL (container) ===== -->
+  <g filter="url(#sh)">
+    <rect x="250" y="382" width="580" height="406" rx="12" fill="#FFFFFF" stroke="#E3A06B"/>
+    <rect x="250" y="382" width="580" height="64" rx="12" fill="#FBEFE3"/>
+  </g>
+  <g transform="translate(274,398)">
+    <rect x="0" y="0" width="34" height="9" rx="2" fill="#C94F00"/>
+    <rect x="0" y="13" width="34" height="9" rx="2" fill="#E3853F"/>
+    <rect x="0" y="26" width="34" height="9" rx="2" fill="#F0A968"/>
+  </g>
+  <text x="320" y="412" font-size="17" font-weight="700" fill="#243A5E">Host Pool</text>
+  <text x="320" y="432" font-size="12.5" fill="#C94F00">vdpool-avd-prd-cin-001  ·  Pooled  ·  Breadth-first  ·  máx. sessões</text>
+  <text x="550" y="470" text-anchor="middle" font-size="12.5" fill="#5B6B81">Conjunto de VMs idênticas + a configuração de balanceamento e limites. O Broker distribui as sessões entre os hosts abaixo.</text>
+
+  <!-- session host 1 -->
+  <g filter="url(#sh)">
+    <rect x="290" y="500" width="226" height="250" rx="10" fill="#FFFFFF" stroke="#E3E9F0"/>
+    <rect x="290" y="500" width="226" height="8" rx="4" fill="#0078D4"/>
+  </g>
+  <g transform="translate(380,524)">
+    <rect x="0" y="0" width="48" height="34" rx="3" fill="#0078D4"/>
+    <rect x="4" y="4" width="40" height="26" rx="2" fill="#9FE0FF"/>
+    <rect x="18" y="34" width="12" height="8" fill="#0078D4"/>
+    <rect x="8" y="42" width="32" height="5" rx="2" fill="#005A9E"/>
+  </g>
+  <text x="403" y="592" text-anchor="middle" font-size="15" font-weight="700" fill="#243A5E">Session Host</text>
+  <text x="403" y="612" text-anchor="middle" font-size="12.5" fill="#0078D4">vmavde-cin-0</text>
+  <text x="403" y="638" text-anchor="middle" font-size="11.5" fill="#5B6B81">VM (Windows 11</text>
+  <text x="403" y="654" text-anchor="middle" font-size="11.5" fill="#5B6B81">multi-session) onde a</text>
+  <text x="403" y="670" text-anchor="middle" font-size="11.5" fill="#5B6B81">sessão do usuário</text>
+  <text x="403" y="686" text-anchor="middle" font-size="11.5" fill="#5B6B81">realmente roda.</text>
+  <text x="403" y="716" text-anchor="middle" font-size="11" fill="#9AA7B8">+ agente AVD + FSLogix</text>
+
+  <!-- session host 2 -->
+  <g filter="url(#sh)">
+    <rect x="564" y="500" width="226" height="250" rx="10" fill="#FFFFFF" stroke="#E3E9F0"/>
+    <rect x="564" y="500" width="226" height="8" rx="4" fill="#0078D4"/>
+  </g>
+  <g transform="translate(654,524)">
+    <rect x="0" y="0" width="48" height="34" rx="3" fill="#0078D4"/>
+    <rect x="4" y="4" width="40" height="26" rx="2" fill="#9FE0FF"/>
+    <rect x="18" y="34" width="12" height="8" fill="#0078D4"/>
+    <rect x="8" y="42" width="32" height="5" rx="2" fill="#005A9E"/>
+  </g>
+  <text x="677" y="592" text-anchor="middle" font-size="15" font-weight="700" fill="#243A5E">Session Host</text>
+  <text x="677" y="612" text-anchor="middle" font-size="12.5" fill="#0078D4">vmavde-cin-1</text>
+  <text x="677" y="638" text-anchor="middle" font-size="11.5" fill="#5B6B81">VM (Windows 11</text>
+  <text x="677" y="654" text-anchor="middle" font-size="11.5" fill="#5B6B81">multi-session) onde a</text>
+  <text x="677" y="670" text-anchor="middle" font-size="11.5" fill="#5B6B81">sessão do usuário</text>
+  <text x="677" y="686" text-anchor="middle" font-size="11.5" fill="#5B6B81">realmente roda.</text>
+  <text x="677" y="716" text-anchor="middle" font-size="11" fill="#9AA7B8">+ agente AVD + FSLogix</text>
+
+  <!-- footer legend -->
+  <text x="500" y="828" text-anchor="middle" font-size="12.5" fill="#5B6B81">Resumo: o usuário entra no <tspan font-weight="700" fill="#0078D4">Workspace</tspan> → escolhe o recurso do <tspan font-weight="700" fill="#8661C5">Application Group</tspan> → o <tspan font-weight="700" fill="#C94F00">Host Pool</tspan> entrega a sessão em um <tspan font-weight="700" fill="#0078D4">Session Host</tspan>.</text>
+  <text x="500" y="852" text-anchor="middle" font-size="11.5" fill="#9AA7B8">1 Workspace → N Application Groups · 1 Application Group → 1 Host Pool · 1 Host Pool → N Session Hosts</text>
+</svg>

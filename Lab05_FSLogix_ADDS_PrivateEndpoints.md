@@ -138,8 +138,10 @@ Não há botão de portal para "domain join" da storage account em AD DS on-prem
 ## Parte D — Configurar as permissões (RBAC de share + NTFS)
 
 ### D.1 — RBAC de nível de share
+> **Boa prática — grupo dedicado:** no AD (ADUC), crie um grupo `grp-avd-fslogix-usuarios` na OU `AVD` com os usuários de perfil e deixe o Entra Connect sincronizá-lo; atribua o RBAC do share a esse grupo.
+
 1. Storage Account → **Access Control (IAM) → + Add → Add role assignment.**
-2. Usuários AVD: **Storage File Data SMB Share Contributor** (grupo ou `joao.teste`).
+2. Usuários AVD: **Storage File Data SMB Share Contributor** ao grupo **`grp-avd-fslogix-usuarios`**.
 3. Sua conta admin: **Storage File Data SMB Share Elevated Contributor** (para configurar NTFS).
 4. **Review + assign.**
 
@@ -156,8 +158,9 @@ Não há botão de portal para "domain join" da storage account em AD DS on-prem
    icacls Z: /grant "AVDLAB\Domain Users:(M)"
    icacls Z: /grant "AVDLAB\Domain Users:(CI)(M)"
    icacls Z: /remove "Builtin\Users"
-   net use Z: /delete
+   # Deixamos Z: mapeada de propósito, para o admin inspecionar os .vhdx depois.
    ```
+   > 🔧 Para remover a unidade depois: `net use Z: /delete`.
 
 ---
 
@@ -190,6 +193,18 @@ Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Rea
    ```
 4. No portal: **Storage Account → File shares → profiles → Browse** → deve existir o `.vhdx` do usuário.
 5. Confira o log do FSLogix: `C:\ProgramData\FSLogix\Logs\Profile` → `Profile container attached`.
+
+### 🔎 Onde buscar logs (diagnóstico de causa raiz)
+| Fonte | Onde | O que procurar |
+|-------|------|----------------|
+| **Logs do FSLogix** | `C:\ProgramData\FSLogix\Logs\Profile` | `Profile container attached` ou `Access is denied` / erro de rede |
+| **Event Viewer** | `Applications and Services Logs → Microsoft → FSLogix → Apps` | Eventos de Erro/Aviso do FSLogix |
+| **Resolução privada** | `nslookup <seu-storage>.file.core.windows.net` | Deve retornar **IP 10.50.2.x** (Private Endpoint), não público |
+| **Ticket Kerberos (AD)** | `klist` na sessão | Ticket `cifs/<seu-storage>...`; senão revise o join AD do storage (Parte C) |
+| **Conectividade SMB** | `Test-NetConnection <seu-storage>.file.core.windows.net -Port 445` | `TcpTestSucceeded: True` pela rede privada |
+| **Join do storage** | No host/DC com módulo Az: `Debug-AzStorageAccountAuth` | Falhas de SPN/Kerberos do storage no AD |
+
+> 💡 **Atalho mental:** perfil temporário aqui = (1) FQDN resolvendo para IP **público** (DNS/PE — Parte B), (2) storage não ingressado no AD (Parte C), (3) **RBAC de share** faltando (Parte D), ou (4) `VHDLocations` errado na GPO (Parte E).
 
 ### Critérios de sucesso
 - [ ] `nslookup` do FQDN do storage retorna **IP privado** (Private Endpoint funcionando).
