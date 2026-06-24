@@ -225,8 +225,27 @@ New-ItemProperty -Path $base -Name "FlipFlopProfileDirectoryName" -Value 1 -Prop
 
 ---
 
-## Parte H — Validar
+## Parte H — Instalar o cliente, conectar e validar
 
+### H.1 — Instalar o cliente AVD
+O acesso ao AVD é feito pelo **Windows App** (nome atual do antigo "Remote Desktop client"), pelo **cliente Remote Desktop clássico** ou pelo **navegador**. Escolha um:
+
+**Opção 1 — Windows App (recomendado · Windows, macOS, iOS, Android):**
+1. **Windows:** abra a **Microsoft Store**, busque **"Windows App"** e instale (ou acesse https://aka.ms/windowsapp). No **macOS/celular**, baixe pela **App Store / Google Play**.
+2. Abra o **Windows App** → **Sign in** com a conta do usuário (ex.: `joao.teste@seudominio.onmicrosoft.com`).
+3. Os **workspaces atribuídos** ao usuário aparecem automaticamente; o desktop publicado fica visível para abrir.
+
+**Opção 2 — Cliente Remote Desktop clássico (Windows):**
+1. Baixe o instalador em https://aka.ms/avddownload (escolha **Windows 64-bit**) e instale.
+2. Abra **Remote Desktop** → **Subscribe** (ou **Subscribe with URL** → `https://rdweb.wvd.microsoft.com`) → faça login → o workspace é adicionado.
+
+**Opção 3 — Web client (sem instalar nada):**
+1. No navegador, acesse **https://client.wvd.microsoft.com/arm/webclient/**.
+2. Faça login com a conta do usuário → o desktop publicado aparece.
+
+> 💡 **Se o recurso não aparecer no cliente:** confirme que (1) o usuário está no grupo `grp-avd-usuarios` **atribuído ao Application Group** (Lab 01, Parte D) e (2) você fez login com o **mesmo UPN** atribuído. Feche e reabra o cliente para atualizar a lista (no Windows App/Remote Desktop: botão **Refresh**).
+
+### H.2 — Conectar e validar
 1. Reinicie os 2 hosts (para aplicar Kerberos + FSLogix).
 2. Conecte como `joao.teste` (o mesmo usuário do Lab 01).
 3. Dentro da sessão, abra **PowerShell** e confirme o ticket de nuvem:

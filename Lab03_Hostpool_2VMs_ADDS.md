@@ -60,6 +60,10 @@ Empresa com **Active Directory tradicional**. As VMs do AVD ingressam no domíni
 | Session hosts | `vmavda-cin` (gera `vmavda-cin-0`, `vmavda-cin-1`) |
 | Unidade Organizacional alvo | `OU=AVD,DC=avdlab,DC=local` |
 
+> 📛 **Sobre o nome do domínio — escolha o SEU (importante):** o `avdlab.local` é só um exemplo. **Cada aluno deve usar um domínio próprio** (ex.: `seunome.local`, `contoso.local`) para não colidir com colegas que compartilhem o mesmo tenant Entra.
+>
+> ✅ **Recomendado para o laboratório:** se você tiver um **domínio público real** (ex.: `seudominio.com.br`), use-o como nome do AD DS **e adicione/verifique esse domínio no Entra ID** (*Entra ID → Custom domain names*). Assim o **sufixo UPN dos usuários** (`joao@seudominio.com.br`) funciona de ponta a ponta — login no AVD com o **domínio customizado real**, sem o ajuste automático para `@...onmicrosoft.com`. Domínios `.local` funcionam, mas **forçam o UPN a cair no `onmicrosoft.com`** na sincronização (ver nota da Parte D).
+
 ---
 
 ## Parte A — Provisionar a VM controladora de domínio
@@ -119,11 +123,17 @@ Para que os hosts encontrem o domínio, a VNet deve resolver DNS pelo DC.
 
 A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precisam ser sincronizados.
 
-1. Na `vmdc-cin-01` (ou numa VM membro dedicada), baixe e instale o **Microsoft Entra Connect** (antigo Azure AD Connect): site oficial da Microsoft → "Microsoft Entra Connect".
-2. Execute o assistente:
-   - **Express Settings** (lab) ou **Customize**.
+> 🖥️ **Onde instalar (boa prática vs. laboratório):** em produção, o **ideal é instalar o Entra Connect numa VM membro dedicada** (não no controlador de domínio), por segurança e isolamento. **Neste laboratório**, para **reduzir o número de VMs e o custo**, vamos instalá-lo **no próprio `vmdc-cin-01`** — aceitável apenas em ambiente de estudo.
+
+> 👤 **Crie uma conta de serviço exclusiva para a sincronização** — **não** use uma conta de usuário nomeada (como `dcadmin`). Uma conta dedicada dá **controle e rastreabilidade**. No DC, em **Active Directory Users and Computers → OU AVD → New → User**, crie:
+> - **Nome de logon:** `svc.entraid` (ex.: `svc.entraid@avdlab.local`).
+> - Senha forte · **Password never expires** · **não** exigir troca no próximo logon.
+> - É essa conta que será usada como **conta de serviço do conector local do AD** no assistente.
+
+1. Na `vmdc-cin-01`, baixe e instale o **Microsoft Entra Connect** (antigo Azure AD Connect): site oficial da Microsoft → "Microsoft Entra Connect".
+2. Execute o assistente (use **Customize** para poder definir a conta de serviço):
    - Informe credenciais de **Global Administrator** do tenant Entra.
-   - Informe credenciais de **Enterprise Admin** do AD (`AVDLAB\dcadmin`).
+   - Em **Connect your directories**, ao adicionar o domínio AD, escolha **usar uma conta de serviço existente** e informe **`svc.entraid`**. (Se preferir o padrão, o assistente cria uma conta `AAD_xxxx` automaticamente — mas a conta dedicada dá mais controle.) Para criar/elevar a conta do conector, será pedida **uma vez** uma credencial de **Enterprise Admin** (`AVDLAB\dcadmin`).
    - Selecione a OU `AVD` para sincronizar (em **Domain and OU filtering**).
    - Conclua. Force a sync se quiser:
      ```powershell
@@ -161,10 +171,20 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
 
 ## Parte F — Atribuir acesso ao usuário
 
-1. **RBAC de login no SO:** ao contrário do cenário Entra-join, hosts AD DS-joined **não** exigem o papel "Virtual Machine User Login" para o login no SO (a autorização é via AD). Mesmo assim, o usuário precisa ter direito de logon (membro de *Remote Desktop Users*, que o AVD configura).
+1. **Crie/atribua um grupo (boa prática):** no AD (ADUC), crie um grupo de segurança `grp-avd-usuarios` na OU `AVD`, adicione os usuários e deixe o **Entra Connect** sincronizá-lo. Você publica para o grupo, não usuário a usuário.
 2. **Atribuir ao Application Group (obrigatório para o recurso aparecer):**
-   - **Boa prática — use um grupo:** no AD (ADUC), crie um grupo de segurança `grp-avd-usuarios` na OU `AVD`, adicione os usuários e deixe o **Entra Connect** sincronizá-lo. Assim você publica para o grupo, não usuário a usuário.
    - **Azure Virtual Desktop → Application groups → `vdag-avd-prd-cin-002`** → **Assignments → + Add** → selecione o grupo **`grp-avd-usuarios`** (a identidade **sincronizada** no Entra) → **Select**.
+
+### Preciso adicionar o grupo ao "Remote Desktop Users" nos servidores?
+
+**Não — normalmente não é necessário fazer isso manualmente.** No AVD:
+- A **atribuição no Application Group** (passo 2) autoriza o usuário no **plano de controle** (Broker) — é o passo **obrigatório**.
+- Nos **session hosts**, o direito *Allow log on through Remote Desktop Services* já pertence ao grupo local **Remote Desktop Users**, e o provisionamento do host pool cuida do necessário para os usuários atribuídos. Você **não** precisa entrar host a host para adicionar o grupo.
+- **Não** é preciso o papel **Virtual Machine User Login** (isso é só do cenário Entra-join do Lab 01); aqui a autorização do SO é via **AD**.
+
+**Exceção — quando mexer nisso:** se, mesmo atribuído ao App Group, o usuário receber *"To sign in remotely, you need the right to sign in through Remote Desktop Services"*, então adicione o **`grp-avd-usuarios`** ao **Remote Desktop Users** — mas via **GPO** (nunca manualmente em cada host):
+- **Group Policy Management → GPO da OU `AVD` → Edit →** *Computer Configuration → Preferences → Control Panel Settings → Local Users and Groups* → **New → Local Group** → **Remote Desktop Users (built-in)** → **Add** `AVDLAB\grp-avd-usuarios` → nos hosts, `gpupdate /force`.
+- Alternativa equivalente: *Security Settings → Restricted Groups*.
 
 ---
 
