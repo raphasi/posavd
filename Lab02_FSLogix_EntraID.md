@@ -1,0 +1,214 @@
+# Lab 02 — FSLogix integrado ao Microsoft Entra ID (Azure Files com Entra Kerberos)
+
+> **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
+> **Modalidade:** Passo a passo via Portal do Azure (portal-first)
+> **Dependência obrigatória:** **Lab 01** concluído — host pool `vdpool-avd-prd-cin-001` com 2 hosts ingressados no **Microsoft Entra ID**.
+
+---
+
+## Ficha do laboratório
+
+| Item | Detalhe |
+|------|---------|
+| **Dificuldade** | ★★★ Avançado |
+| **Tempo estimado** | 75–90 min |
+| **Objetivo** | Armazenar perfis FSLogix em um **Azure Files** autenticado por **Microsoft Entra Kerberos** (cenário cloud-native, **sem AD DS**), reutilizando o host pool do Lab 01. |
+| **Pré-requisitos** | Lab 01 concluído; **Intune** disponível (para aplicar o Settings Catalog nos hosts) ou disposição para configurar a chave de registro manualmente; papel **Owner** para conceder admin consent na API permission. |
+| **Recursos consumidos** | 1× Storage Account (FileStorage/Premium ou StorageV2), 1× File Share, configuração de identidade e RBAC. |
+| **Entrega** | Perfil do usuário criado como `.vhdx` no share, com login carregando o perfil FSLogix a partir do Azure Files via Entra Kerberos. |
+
+### Cenário
+Sem controlador de domínio, o Azure Files autentica via **Microsoft Entra Kerberos**: o host Entra-joined obtém um *cloud TGT* do Entra ID e monta o share SMB. É o complemento natural do Lab 01.
+
+> ⚠️ **Requisitos de plataforma (validar antes de começar):**
+> - Hosts com **Windows 11 multi-session 24H2** (ou superior) com as atualizações cumulativas recentes. O Lab 01 já usa imagem 24H2.
+> - Uma conta de armazenamento **não pode** usar Entra Kerberos e AD DS ao mesmo tempo — escolha apenas Entra Kerberos.
+> - **MFA não pode** ser exigido para a app de storage no fluxo do Kerberos silencioso (ver Parte E).
+
+### Convenção de nomes
+| Recurso | Nome |
+|---------|------|
+| Storage Account | `stavdfsxentracin001` (precisa ser único globalmente — ajuste se necessário) |
+| File Share | `profiles` |
+| Sub-rede FSLogix | `snet-fslogix-prd-cin-001` (10.50.2.0/24) |
+
+---
+
+## Parte A — Criar a Storage Account e o File Share
+
+1. Barra de busca → **Storage accounts** → **+ Create**.
+2. Aba **Basics:**
+   - **Resource group:** `rg-avd-prd-cin-001`.
+   - **Storage account name:** `stavdfsxentracin001` (minúsculas, sem hífen; ajuste para ficar único).
+   - **Region:** Central India.
+   - **Primary service:** Azure Files.
+   - **Performance:** **Premium** → **File shares** (recomendado para perfis; latência baixa). Alternativa de menor custo: **Standard** / **StorageV2**.
+   - **Redundancy:** LRS (lab).
+3. **Review + create** → **Create**.
+4. Aberta a conta → **Data storage → File shares** → **+ File share**:
+   - **Name:** `profiles`.
+   - Em Premium, defina o **Provisioned capacity** mínimo (ex.: 100 GiB). Em Standard, escolha a quota.
+   - **Create**.
+
+---
+
+## Parte B — Habilitar a autenticação Microsoft Entra Kerberos
+
+1. Na Storage Account → **Data storage → File shares** → no topo, **Active Directory** (ou **Security → Identity-based access**).
+   > Caminho alternativo: **Settings → Configuration** não tem isso; use **File shares → Active Directory**, ou **Security + networking → Identity-based access**.
+2. Em **Microsoft Entra Kerberos**, clique **Set up** (ou **Configure**) → marque **Microsoft Entra Kerberos**.
+   - **Deixe os campos de Domain name / Domain GUID em branco** — eles só são usados no cenário híbrido com AD DS. Para cloud-native puro, ficam vazios.
+3. **Save**.
+
+---
+
+## Parte C — Conceder admin consent à API permission (obrigatório)
+
+Ao habilitar o Entra Kerberos, é criado um **App registration** correspondente à storage account. Ele precisa de **admin consent** para a permissão `openid` usada na emissão do ticket.
+
+1. Barra de busca → **Microsoft Entra ID → App registrations** → aba **All applications**.
+2. Busque por `[Storage Account] stavdfsxentracin001.file.core.windows.net` (o nome contém o FQDN da conta).
+3. Abra o app → **API permissions**.
+4. Confirme a permissão **Microsoft Graph → openid** (delegated). Clique **Grant admin consent for [seu tenant]** → **Yes**.
+   > Sem este consent, o login do usuário falha ao obter o ticket Kerberos para o share.
+
+---
+
+## Parte D — Configurar as permissões de acesso (RBAC + NTFS)
+
+Há duas camadas: **share-level (RBAC do Azure)** e **directory/file-level (NTFS)**.
+
+### D.1 — Permissão de nível de share (RBAC)
+1. Storage Account → **Access Control (IAM)** → **+ Add → Add role assignment**.
+2. Para os **usuários** que terão perfil: atribua **Storage File Data SMB Share Contributor** ao grupo de usuários AVD (ou `joao.teste`).
+3. Para o **administrador** (você, para configurar NTFS): atribua **Storage File Data SMB Share Elevated Contributor** à sua conta admin.
+4. **Review + assign** em cada atribuição.
+
+> Alternativa rápida: na janela **Identity-based access** da conta, defina **Default share-level permission** = **Storage File Data SMB Share Contributor** para aplicar a todos os usuários autenticados (menos granular; bom para lab).
+
+### D.2 — Permissões NTFS no share (configuração FSLogix recomendada)
+O FSLogix exige que **usuários** tenham permissão de criar a própria pasta/`.vhdx`, mas não enxerguem perfis de outros. Aplique a recomendação Microsoft no share montado.
+
+1. Obtenha a **storage account key** para montar o share como admin: Storage Account → **Security + networking → Access keys** → copie a **key1**.
+2. Em uma máquina com linha de visão ao Azure Files (pode ser um dos hosts AVD via RDP, como `localadmin`), abra **PowerShell como Administrador** e monte o share usando a key (passo administrativo **obrigatório**, não há equivalente de NTFS no portal):
+
+   ```powershell
+   # Substituir conta, key e share
+   $conta   = "stavdfsxentracin001"
+   $key     = "<COLE_A_KEY1_AQUI>"
+   $unc     = "\\$conta.file.core.windows.net\profiles"
+
+   # Monta como Z: usando a chave da conta (acesso administrativo)
+   cmd /c "net use Z: $unc /user:Azure\$conta $key"
+
+   # Aplica as permissões NTFS recomendadas para FSLogix:
+   icacls Z: /grant "Creator Owner:(OI)(CI)(IO)(M)"
+   icacls Z: /grant "Authenticated Users:(M)"
+   icacls Z: /grant "Authenticated Users:(CI)(M)"
+   icacls Z: /remove "Builtin\Users"
+   net use Z: /delete
+   ```
+   > Isso garante: cada usuário cria e é dono do próprio perfil; usuários não acessam perfis alheios.
+
+---
+
+## Parte E — Garantir que MFA não bloqueie o Kerberos silencioso
+
+O host precisa obter o ticket Kerberos **silenciosamente** no logon. Se houver Conditional Access exigindo MFA para a app de storage, o fluxo falha.
+
+1. **Microsoft Entra ID → Conditional Access** (ou **Security → Conditional Access**).
+2. Garanta que a aplicação **Microsoft Azure Files** (App ID começa com a storage) ou a sessão de logon do host **não** esteja sujeita a uma política que exija MFA no momento do logon do AVD. Em lab, normalmente não há política; em produção, **exclua** a app de storage da política de MFA ou use confiança de dispositivo.
+
+---
+
+## Parte F — Habilitar o cloud Kerberos ticket retrieval nos hosts (obrigatório)
+
+Hosts Entra-joined **não** buscam o cloud TGT por padrão. É preciso ligar a política **`CloudKerberosTicketRetrievalEnabled`**. O caminho recomendado é o **Intune (Settings Catalog)**.
+
+### Via Intune (recomendado)
+1. Barra de busca → **Intune** (ou **Microsoft Intune admin center** → `intune.microsoft.com`).
+2. **Devices → Configuration → + Create → New Policy**:
+   - **Platform:** Windows 10 and later.
+   - **Profile type:** **Settings catalog**.
+3. **Name:** `AVD - FSLogix Entra Kerberos`.
+4. **+ Add settings** → busque **Kerberos** → categoria **Administrative Templates › System › Kerberos** → marque **Allow retrieving the cloud kerberos ticket during the logon** → defina **Enabled**.
+5. **+ Add settings** → busque **FSLogix** (caso queira já entregar a config FSLogix por aqui — ver Parte G). 
+6. **Assignments:** atribua ao grupo de dispositivos que contém os 2 hosts (`vmavde-cin-0`, `vmavde-cin-1`). Crie um grupo dinâmico/estático com esses devices se necessário.
+7. **Create**. Aguarde a sincronização (force com `Sync` no device ou reinicie os hosts).
+
+> **Sem Intune?** Aplique a chave manualmente em cada host (RDP como `localadmin`, PowerShell como Admin):
+> ```powershell
+> New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters" `
+>   -Name "CloudKerberosTicketRetrievalEnabled" -Value 1 -PropertyType DWORD -Force
+> ```
+> Reinicie o host após aplicar.
+
+---
+
+## Parte G — Configurar o FSLogix nos session hosts
+
+O FSLogix já vem **instalado** na imagem Windows 11 multi-session. Falta apenas **configurar** as chaves de registro apontando para o share. Faça via **Intune Settings Catalog** (recomendado) ou diretamente no registro de cada host.
+
+### Chaves obrigatórias (categoria *FSLogix › Profile Containers* no Settings Catalog)
+| Chave | Valor |
+|-------|-------|
+| **Enabled** | `1` |
+| **VHD Locations** | `\\stavdfsxentracin001.file.core.windows.net\profiles` |
+| **Delete Local Profile When VHD Should Apply** | `1` |
+| **Flip Flop Profile Directory Name** | `1` (nome de pasta legível) |
+
+### Via Intune
+1. Na mesma política `AVD - FSLogix Entra Kerberos` (ou nova) → **+ Add settings** → busque **FSLogix** → categoria **FSLogix › Profile Containers**.
+2. Configure as 4 chaves acima.
+3. **Save** e aguarde sincronização.
+
+### Via registro (sem Intune) — em cada host, PowerShell como Admin
+```powershell
+$base = "HKLM:\SOFTWARE\FSLogix\Profiles"
+New-Item -Path $base -Force | Out-Null
+New-ItemProperty -Path $base -Name "Enabled" -Value 1 -PropertyType DWORD -Force
+New-ItemProperty -Path $base -Name "VHDLocations" -Value "\\stavdfsxentracin001.file.core.windows.net\profiles" -PropertyType MultiString -Force
+New-ItemProperty -Path $base -Name "DeleteLocalProfileWhenVHDShouldApply" -Value 1 -PropertyType DWORD -Force
+New-ItemProperty -Path $base -Name "FlipFlopProfileDirectoryName" -Value 1 -PropertyType DWORD -Force
+```
+
+---
+
+## Parte H — Validar
+
+1. Reinicie os 2 hosts (para aplicar Kerberos + FSLogix).
+2. Conecte como `joao.teste` (o mesmo usuário do Lab 01).
+3. Dentro da sessão, abra **PowerShell** e confirme o ticket de nuvem:
+   ```cmd
+   klist cloud_debug
+   klist
+   ```
+   Deve listar um ticket para `cifs/stavdfsxentracin001.file.core.windows.net`.
+4. No portal: Storage Account → **File shares → profiles → Browse**. Deve existir uma pasta do usuário contendo `Profile_joao.teste.vhdx` (ou `joao.teste_S-1-...`).
+5. Na sessão, confirme o tipo de perfil:
+   ```powershell
+   Get-CimInstance Win32_UserProfile | Select LocalPath, Special
+   ```
+   O perfil do usuário deve estar montado a partir do VHDX (não local temporário).
+
+### Critérios de sucesso
+- [ ] `klist` na sessão mostra ticket Kerberos para o FQDN do storage.
+- [ ] Existe um `.vhdx` do usuário no share `profiles`.
+- [ ] O log do FSLogix (`C:\ProgramData\FSLogix\Logs\Profile`) mostra `Profile container attached` sem erro de rede/permissão.
+- [ ] Reconectar mantém configurações do usuário (teste: criar um arquivo na Área de Trabalho, sair, reconectar — o arquivo persiste).
+
+---
+
+## Erros comuns
+
+| Sintoma | Causa | Correção |
+|---------|-------|----------|
+| Perfil temporário (`TEMP`) criado | FSLogix não conseguiu montar o VHDX | Veja `C:\ProgramData\FSLogix\Logs`; geralmente Kerberos não habilitado (Parte F) ou consent ausente (Parte C) |
+| `klist` sem ticket cifs | `CloudKerberosTicketRetrievalEnabled` não aplicado | Refaça a Parte F e reinicie o host |
+| Erro de acesso negado ao share | RBAC de share faltando | Refaça D.1 (Storage File Data SMB Share Contributor) |
+| Falha de logon silencioso | MFA exigido na app de storage | Refaça a Parte E (excluir storage do MFA) |
+
+---
+
+## Próximo lab
+➡️ **Lab 03 — Host Pool com 2 VMs ingressadas em AD DS** (cenário híbrido clássico, com criação do controlador de domínio).
