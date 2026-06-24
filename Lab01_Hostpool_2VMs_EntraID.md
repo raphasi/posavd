@@ -62,6 +62,27 @@ Este é o cenário **cloud-native** mais simples: não há controlador de domín
 
 ---
 
+## Grupos de identidade no Entra ID (faça antes de tudo)
+
+Antes de qualquer recurso, crie no Entra ID os **grupos de segurança** que vão organizar o acesso ao AVD. Trabalhar com grupos (em vez de usuário a usuário) é a boa prática: você atribui papéis e o Application Group **uma vez ao grupo**, e depois é só adicionar/remover pessoas no grupo.
+
+| Grupo | Para quê | Receberá (nos próximos passos) |
+|-------|----------|--------------------------------|
+| `grp-avd-usuarios` | **Todos os usuários** do AVD (acesso ao desktop) | Atribuição no Application Group (Parte D) + papel **Virtual Machine User Login** (Parte C) |
+| `grp-avd-admins` | **Administradores** do AVD (gestão e acesso elevado às VMs) | Papel **Virtual Machine Administrator Login** + papéis de gestão do AVD |
+
+1. Barra de busca → **Microsoft Entra ID → Groups → + New group**.
+   - **Group type:** Security.
+   - **Group name:** `grp-avd-usuarios`.
+   - **Membership type:** Assigned.
+   - **Members:** adicione `joao.teste` (e os demais usuários finais do AVD).
+   - **Create**.
+2. Repita criando **`grp-avd-admins`** e adicione as contas de administração (a sua, por exemplo).
+
+> 💡 A partir daqui, onde os passos citam `joao.teste`, prefira usar o **grupo `grp-avd-usuarios`** — é o "grupo de acesso de todos os usuários do AVD".
+
+---
+
 ## Parte A — Verificar o ambiente base
 
 > Se você já concluiu o Lab 1.1, pule para a Parte B. Caso contrário, crie o mínimo necessário.
@@ -148,7 +169,8 @@ Em VMs ingressadas no Entra ID, o login do usuário é autorizado por **RBAC de 
 1. Barra de busca → **Resource groups** → `rg-avd-prd-cin-001` → **Access control (IAM)** → **+ Add → Add role assignment**.
 2. Aba **Role:** busque e selecione **Virtual Machine User Login**.
    > Se o usuário também precisar de direitos administrativos na VM, atribua adicionalmente **Virtual Machine Administrator Login**.
-3. Aba **Members:** **Assign access to → User, group, or service principal** → **+ Select members** → selecione `joao.teste` (ou o grupo de usuários AVD).
+3. Aba **Members:** **Assign access to → User, group, or service principal** → **+ Select members** → selecione o grupo **`grp-avd-usuarios`** (recomendado) — assim todos os membros herdam o acesso de uma vez.
+   > Para administradores que precisam de acesso elevado à VM, atribua também **Virtual Machine Administrator Login** ao grupo **`grp-avd-admins`**.
 4. **Review + assign**.
 
 > **Por que no Resource Group?** Atribuir no RG faz o papel valer para todas as VMs do lab. Em produção, prefira atribuir no escopo das VMs ou do RG dedicado aos hosts.
@@ -160,7 +182,8 @@ Em VMs ingressadas no Entra ID, o login do usuário é autorizado por **RBAC de 
 O RBAC da Parte C autoriza o *login no SO*. Para o recurso **aparecer** no cliente AVD, o usuário precisa estar atribuído ao **Application Group**.
 
 1. **Azure Virtual Desktop → Application groups** → `vdag-avd-prd-cin-001` (ou o DAG criado automaticamente).
-2. **Assignments** → **+ Add** → selecione `joao.teste` (ou o grupo) → **Select**.
+2. **Assignments** → **+ Add** → selecione o grupo **`grp-avd-usuarios`** → **Select**.
+   > Atribuindo o **grupo** (e não usuários soltos), basta adicionar a pessoa ao `grp-avd-usuarios` no Entra ID para ela passar a ver o desktop — sem mexer no AVD de novo.
 
 ---
 
@@ -248,6 +271,39 @@ São **dois** sub-passos, ambos obrigatórios: (E.1) as RDP Properties no host p
 | Host fica em *Unavailable* | Extensão de Entra join falhou / sem saída para internet | Verifique NSG/saída da `snet-hosts`; reimplante o host |
 
 > 💡 **Diagnóstico decisivo de falha de login:** **Entra ID → Monitoring → Sign-in logs**, filtrando pelo usuário. Se **não houver** registro da tentativa no horário, é **rede** (host não alcançou o Entra). Se **houver** registro com falha, leia o *Failure reason* (normalmente MFA/SSO).
+
+---
+
+## Parte G — Administração básica do host pool (antes de seguir)
+
+Antes de ir ao Lab 02, conheça as consoles de operação do dia a dia. Tudo no portal, em **Azure Virtual Desktop → Host pools → `vdpool-avd-prd-cin-001`**.
+
+### G.1 — Ver quem está conectado (sessões e usuário logado)
+1. No host pool, abra **Sessions** (menu lateral).
+2. A lista mostra **cada usuário conectado**, o **session host** onde está, o **estado** (`Active` / `Disconnected`) e o horário de início.
+3. Selecionando uma sessão você pode:
+   - **Send message** — enviar um aviso na tela do usuário (ex.: "Reinício às 18h, salve seu trabalho").
+   - **Disconnect** — desconectar (a sessão fica suspensa; o usuário pode voltar de onde parou).
+   - **Log off** — encerrar a sessão (fecha apps; use com aviso prévio).
+
+### G.2 — Estado dos session hosts
+1. Abra **Session hosts**.
+2. Veja por host: **Status** (`Available` / `Unavailable` / `Shutdown`), **versão do agente**, **nº de sessões** e se está em **drain mode**.
+3. Use isto para confirmar que os 2 hosts estão saudáveis (*Available*) antes de liberar usuários.
+
+### G.3 — Colocar um host em *Drain mode* (manutenção)
+O **drain mode** impede **novas** sessões em um host **sem derrubar** quem já está conectado — ideal para preparar manutenção/atualização.
+1. **Session hosts** → marque o host (ex.: `vmavde-cin-0`).
+2. Clique em **Turn on drain mode** (ou **Disallow new sessions**).
+3. O host passa a recusar novos logons; aguarde as sessões ativas se esvaziarem (acompanhe em **Sessions**) ou avise/force logoff.
+4. Após a manutenção, **Turn off drain mode** para voltar a aceitar usuários.
+
+### G.4 — Operações comuns
+- **Reiniciar/atualizar um host:** drain mode → esvaziar sessões → reiniciar a VM (em **Virtual machines**) → tirar do drain.
+- **Remover um host** do pool: **Session hosts** → selecione → **Remove** (depois exclua VM/disco/NIC se não for reutilizar).
+- **Adicionar host:** **Session hosts → + Add** (mesmo assistente da Parte B).
+
+> 💡 **Boa prática de operação:** nunca derrube um host direto. O fluxo seguro é **drain mode → avisar (Send message) → aguardar/forçar logoff → manutenção → tirar do drain**.
 
 ---
 

@@ -38,7 +38,7 @@ flowchart LR
 | **Tempo estimado** | 75–90 min |
 | **Objetivo** | Armazenar perfis FSLogix em um **Azure Files** autenticado por **Microsoft Entra Kerberos** (cenário cloud-native, **sem AD DS**), reutilizando o host pool do Lab 01. |
 | **Pré-requisitos** | Lab 01 concluído; **Intune** disponível (para aplicar o Settings Catalog nos hosts) ou disposição para configurar a chave de registro manualmente; papel **Owner** para conceder admin consent na API permission. |
-| **Recursos consumidos** | 1× Storage Account (FileStorage/Premium ou StorageV2), 1× File Share, configuração de identidade e RBAC. |
+| **Recursos consumidos** | 1× Storage Account (**Standard / StorageV2**), 1× File Share, configuração de identidade e RBAC. |
 | **Entrega** | Perfil do usuário criado como `.vhdx` no share, com login carregando o perfil FSLogix a partir do Azure Files via Entra Kerberos. |
 
 ### Cenário
@@ -66,12 +66,15 @@ Sem controlador de domínio, o Azure Files autentica via **Microsoft Entra Kerbe
    - **Storage account name:** `stavdfsxentracin001` (minúsculas, sem hífen; ajuste para ficar único).
    - **Region:** Central India.
    - **Primary service:** Azure Files.
-   - **Performance:** **Premium** → **File shares** (recomendado para perfis; latência baixa). Alternativa de menor custo: **Standard** / **StorageV2**.
+   - **Performance:** **Standard** (suficiente para o laboratório e bem mais econômico). *Premium fica para produção, quando você precisa de latência muito baixa.*
    - **Redundancy:** LRS (lab).
+   - Aba **Data protection:** **desmarque o backup** (Recovery Services / "Enable backup") — em laboratório evita custo e a criação de um cofre desnecessário.
 3. **Review + create** → **Create**.
 4. Aberta a conta → **Data storage → File shares** → **+ File share**:
    - **Name:** `profiles`.
-   - Em Premium, defina o **Provisioned capacity** mínimo (ex.: 100 GiB). Em Standard, escolha a quota.
+   - **Tier:** deixe **Transaction optimized** (padrão do Standard).
+   - **Quota:** defina um valor pequeno para o lab (ex.: 100 GiB).
+   - Se o portal oferecer **habilitar backup** do share, **desmarque/pule** (não habilite backup no laboratório).
    - **Create**.
 
 ---
@@ -90,6 +93,8 @@ Sem controlador de domínio, o Azure Files autentica via **Microsoft Entra Kerbe
 
 Ao habilitar o Entra Kerberos, é criado um **App registration** correspondente à storage account. Ele precisa de **admin consent** para a permissão `openid` usada na emissão do ticket.
 
+> 🧠 **Por que esse passo existe (em linguagem simples):** quando o usuário faz logon, o host pede ao Entra ID um "ingresso" (ticket Kerberos) para abrir o Azure Files. Esse pedido é feito **em nome do usuário** pelo app de identidade da storage account. O *admin consent* é o **carimbo do administrador autorizando, de uma vez por todas, que aquele app possa identificar o usuário (`openid`)**. Sem esse carimbo, o Entra ID recusa emitir o ticket, o FSLogix não monta o perfil e o usuário cai num perfil **temporário**.
+
 1. Barra de busca → **Microsoft Entra ID → App registrations** → aba **All applications**.
 2. Busque por `[Storage Account] stavdfsxentracin001.file.core.windows.net` (o nome contém o FQDN da conta).
 3. Abra o app → **API permissions**.
@@ -102,11 +107,18 @@ Ao habilitar o Entra Kerberos, é criado um **App registration** correspondente 
 
 Há duas camadas: **share-level (RBAC do Azure)** e **directory/file-level (NTFS)**.
 
-### D.1 — Permissão de nível de share (RBAC)
-1. Storage Account → **Access Control (IAM)** → **+ Add → Add role assignment**.
-2. Para os **usuários** que terão perfil: atribua **Storage File Data SMB Share Contributor** ao grupo de usuários AVD (ou `joao.teste`).
-3. Para o **administrador** (você, para configurar NTFS): atribua **Storage File Data SMB Share Elevated Contributor** à sua conta admin.
-4. **Review + assign** em cada atribuição.
+### D.1 — Criar o grupo de perfis e dar a permissão de share (RBAC)
+
+Crie um **grupo específico** para quem terá perfil FSLogix neste storage — assim o acesso ao share é controlado por grupo, e não usuário a usuário.
+
+1. **Microsoft Entra ID → Groups → + New group**:
+   - **Group type:** Security · **Group name:** `grp-avd-fslogix-usuarios`.
+   - **Members:** adicione `joao.teste` (e os demais usuários do AVD que terão perfil — normalmente os mesmos do `grp-avd-usuarios`).
+   - **Create**.
+2. Storage Account → **Access Control (IAM)** → **+ Add → Add role assignment**.
+3. Para os **usuários** que terão perfil: atribua **Storage File Data SMB Share Contributor** ao grupo **`grp-avd-fslogix-usuarios`**.
+4. Para o **administrador** (você, para configurar NTFS): atribua **Storage File Data SMB Share Elevated Contributor** à sua conta admin (ou ao grupo `grp-avd-admins`).
+5. **Review + assign** em cada atribuição.
 
 > Alternativa rápida: na janela **Identity-based access** da conta, defina **Default share-level permission** = **Storage File Data SMB Share Contributor** para aplicar a todos os usuários autenticados (menos granular; bom para lab).
 
@@ -130,9 +142,11 @@ O FSLogix exige que **usuários** tenham permissão de criar a própria pasta/`.
    icacls Z: /grant "Authenticated Users:(M)"
    icacls Z: /grant "Authenticated Users:(CI)(M)"
    icacls Z: /remove "Builtin\Users"
-   net use Z: /delete
+   # Observação: NÃO desmontamos a unidade — deixamos Z: mapeada de propósito,
+   # para o administrador inspecionar os perfis (.vhdx) com facilidade depois.
    ```
    > Isso garante: cada usuário cria e é dono do próprio perfil; usuários não acessam perfis alheios.
+   > 🔧 A unidade **Z:** fica **mapeada** para facilitar a administração (abrir o share, ver os `.vhdx`, conferir tamanho). Quando quiser remover, rode `net use Z: /delete`.
 
 ---
 
@@ -187,7 +201,11 @@ O FSLogix já vem **instalado** na imagem Windows 11 multi-session. Falta apenas
 3. **Save** e aguarde sincronização.
 
 ### Via registro (sem Intune) — em cada host, PowerShell como Admin
+
+> ⚠️ **Ajuste o nome da SUA storage account.** No comando abaixo, troque `stavdfsxentracin001` pelo nome que **você** criou na Parte A (ele é único globalmente, então o seu será diferente). Se o nome estiver errado, o FSLogix aponta para um share inexistente e o perfil cai como temporário.
+
 ```powershell
+# >>> TROQUE 'stavdfsxentracin001' pelo nome da SUA storage account <<<
 $base = "HKLM:\SOFTWARE\FSLogix\Profiles"
 New-Item -Path $base -Force | Out-Null
 New-ItemProperty -Path $base -Name "Enabled" -Value 1 -PropertyType DWORD -Force
@@ -195,6 +213,15 @@ New-ItemProperty -Path $base -Name "VHDLocations" -Value "\\stavdfsxentracin001.
 New-ItemProperty -Path $base -Name "DeleteLocalProfileWhenVHDShouldApply" -Value 1 -PropertyType DWORD -Force
 New-ItemProperty -Path $base -Name "FlipFlopProfileDirectoryName" -Value 1 -PropertyType DWORD -Force
 ```
+
+**O que cada chave faz:**
+
+| Chave | Função |
+|-------|--------|
+| `Enabled = 1` | Liga o FSLogix Profile Container. Sem isso, nada acontece. |
+| `VHDLocations` | Caminho UNC do share onde os `.vhdx` de perfil são criados/lidos. **É aqui que entra o nome da sua storage account.** |
+| `DeleteLocalProfileWhenVHDShouldApply = 1` | Se houver um perfil local "sujo" do usuário, o FSLogix o remove e usa o do VHDX — evita conflito de perfil. |
+| `FlipFlopProfileDirectoryName = 1` | Nomeia a pasta como `usuario_SID` (em vez de `SID_usuario`), deixando o nome **legível** para o administrador. |
 
 ---
 
@@ -214,6 +241,20 @@ New-ItemProperty -Path $base -Name "FlipFlopProfileDirectoryName" -Value 1 -Prop
    Get-CimInstance Win32_UserProfile | Select LocalPath, Special
    ```
    O perfil do usuário deve estar montado a partir do VHDX (não local temporário).
+
+### 🔎 Onde buscar logs (diagnóstico de causa raiz)
+Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada diferente do problema:
+
+| Fonte | Onde | O que procurar |
+|-------|------|----------------|
+| **Logs do FSLogix** | `C:\ProgramData\FSLogix\Logs\Profile` (e `...\Logs\ODFC`) | `Profile container attached` (sucesso) ou erros de rede/permissão / `Access is denied` |
+| **Visualizador de Eventos** | *Event Viewer →* `Applications and Services Logs → Microsoft → FSLogix → Apps` | Eventos de **Erro/Aviso** do FSLogix com código e descrição |
+| **Ticket Kerberos** | Na sessão: `klist` e `klist cloud_debug` | Deve haver ticket `cifs/<seu-storage>.file.core.windows.net`; se faltar → Parte F |
+| **Conectividade SMB** | `Test-NetConnection <seu-storage>.file.core.windows.net -Port 445` | `TcpTestSucceeded: True` (porta 445 liberada na saída) |
+| **Ferramenta frx** | `& 'C:\Program Files\FSLogix\Apps\frx.exe' list-redirects` | Estado do redirecionamento de perfil |
+| **Sign-in logs (Entra)** | **Entra ID → Sign-in logs** | Falha ao obter token/ticket (MFA exigido, consent ausente) |
+
+> 💡 **Atalho mental:** perfil temporário quase sempre é (1) sem ticket Kerberos (`klist`), (2) **consent** ausente (Parte C), (3) **RBAC de share** faltando (Parte D), ou (4) **nome de storage errado** no registro (Parte G).
 
 ### Critérios de sucesso
 - [ ] `klist` na sessão mostra ticket Kerberos para o FQDN do storage.
