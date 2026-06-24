@@ -294,5 +294,23 @@ Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada
 
 ---
 
+## 🧹 Limpeza — encerre o ambiente Entra ID antes do Lab 03
+
+A trilha **Entra ID (Labs 01–02) termina aqui**. O próximo lab inicia o cenário **AD DS** praticamente do zero. Para **não pagar por recursos parados**, **exclua agora** o ambiente que você criou.
+
+**Excluir (recursos dos Labs 01–02):**
+1. **Host pool + session hosts:** **Azure Virtual Desktop → Host pools → `vdpool-avd-prd-cin-001`** → remova os session hosts e exclua o host pool; depois exclua as VMs `vmavde-cin-0` / `vmavde-cin-1` com seus **discos** e **NICs**.
+2. **Workspace e Application Group:** exclua `vdws-avd-prd-cin-001` e `vdag-avd-prd-cin-001`.
+3. **Storage de perfis:** exclua a storage account `stavdfsxentracin001`.
+4. *(Opcional)* **NAT Gateway / IP público:** `ng-avd-prd-cin-001` e `pip-ng-avd-prd-cin-001`, se não for reaproveitar.
+
+> ✅ **Pode manter** (a trilha AD DS reaproveita): o **Resource Group** `rg-avd-prd-cin-001`, a **VNet** `vnet-avd-prd-cin-001` e as **sub-redes** — assim você não recria a base de rede no Lab 03. Os **grupos do Entra ID** (`grp-avd-usuarios`, `grp-avd-admins`) também podem ser mantidos.
+>
+> 🧨 **Quer zerar tudo?** Para um recomeço completo, exclua o **Resource Group inteiro** `rg-avd-prd-cin-001`. Nesse caso, **recrie** no início do Lab 03: o RG, a VNet `vnet-avd-prd-cin-001` (10.50.0.0/16), as sub-redes (`snet-hosts`, `snet-fslogix`, `snet-adds`) e a **NAT Gateway** na `snet-hosts`.
+
+> 💡 **Por que limpar agora:** os 2 session hosts ligados são o maior custo. Excluí-los (ou ao menos **desalocá-los**) entre as trilhas evita cobrança desnecessária de compute.
+
+---
+
 ## Próximo lab
 ➡️ **Lab 03 — Host Pool com 2 VMs ingressadas em AD DS** (cenário híbrido clássico, com criação do controlador de domínio).
