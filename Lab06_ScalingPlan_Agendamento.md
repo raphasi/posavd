@@ -6,7 +6,29 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Intermedi%C3%A1rio-orange?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-45--60_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Foco-Autoscale_%2F_FinOps-2F2F8F?style=for-the-badge" alt="Autoscale">
+</p>
+
+## 🗺️ Ciclo diário do Autoscale
+
+```mermaid
+flowchart LR
+    A["🌅 07:00 · Ramp-up<br/>liga hosts (min 20%)"] --> B["☀️ 09:00 · Peak<br/>capacidade máxima"]
+    B --> C["🌇 18:00 · Ramp-down<br/>logoff + deallocate"]
+    C --> D["🌙 20:00 · Off-peak<br/>hosts desligados (min 0%)"]
+    D -.->|"próximo dia útil"| A
+    SP["⚙️ vdscaling-avd-prd-cin-001"] -.->|"controla as fases"| A
+```
+
+> **Leitura:** o scaling plan liga os hosts no início do expediente e os **desaloca** (sem custo de compute) à noite. Com expediente 07:00–18:00 em dias úteis: ~55 h/semana ligado vs 168 h se ficasse sempre on → **~67% de economia** no compute.
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|

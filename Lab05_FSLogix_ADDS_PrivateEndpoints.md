@@ -6,7 +6,36 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Avan%C3%A7ado-red?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-90--120_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Rede-Private_Endpoint-2F2F8F?style=for-the-badge" alt="Private Endpoint">
+</p>
+
+## 🗺️ Arquitetura deste laboratório
+
+```mermaid
+flowchart LR
+    subgraph VNET["🌐 vnet-avd-prd-cin-001"]
+      HP["🖥️ Hosts domain-joined"]
+      subgraph SNF["snet-fslogix"]
+        PE["🔌 pep-st-adds-prd-cin-001<br/>IP privado 10.50.2.x"]
+      end
+    end
+    DC["🗄️ vmdc-cin-01 · AD DS"]
+    DNS["🧭 Private DNS<br/>privatelink.file.core.windows.net"]
+    HP -->|"1 · Kerberos AD DS"| DC
+    HP -->|"2 · SMB pela rede privada"| PE
+    PE -->|"3"| ST["💾 stavdfsxaddscin001<br/>acesso público DESABILITADO"]
+    DNS -.->|"FQDN → IP privado"| PE
+```
+
+> **Leitura:** o Azure Files é ingressado no **AD DS** (via AzFilesHybrid) e só responde pela **rede privada** — o Private Endpoint dá um IP interno e a Private DNS resolve o FQDN para ele. Nenhum tráfego de perfil sai para a internet pública.
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|

@@ -6,7 +6,36 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Intermedi%C3%A1rio-orange?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-60--75_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Identidade-Microsoft_Entra_ID-2F2F8F?style=for-the-badge&logo=microsoftentraid&logoColor=white" alt="Identidade">
+</p>
+
+## 🗺️ Arquitetura deste laboratório
+
+```mermaid
+flowchart LR
+    U["👤 Usuário"] -->|"1 · Autentica + MFA"| E["🔐 Microsoft Entra ID"]
+    E -->|"2 · SSO / token"| CP["☁️ AVD Control Plane<br/>Broker · Gateway"]
+    CP -->|"3 · Conecta"| HP
+    subgraph RG["📦 rg-avd-prd-cin-001 · Central India"]
+      subgraph VNET["🌐 vnet-avd-prd-cin-001"]
+        subgraph SN["snet-hosts"]
+          HP["🖥️ vdpool-avd-prd-cin-001<br/>2 session hosts<br/>Entra-joined"]
+        end
+        NAT["🚪 NAT Gateway<br/>saída p/ internet"]
+      end
+    end
+    HP -.->|"valida login em login.microsoftonline.com"| NAT
+```
+
+> **Leitura:** o usuário autentica no Entra ID → o SSO carrega o token para a sessão → o Control Plane (PaaS da Microsoft) conecta ao host pool. Os 2 hosts vivem na `snet-hosts` e precisam da **NAT Gateway** para sair à internet (provisionamento do agente e validação de login).
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|
@@ -162,4 +191,70 @@ São **dois** sub-passos, ambos obrigatórios: (E.1) as RDP Properties no host p
 > ⚠️ **Não use `az rest` para isso.** O token do Azure CLI não carrega o escopo `Application.ReadWrite.All` e o comando retorna `Authorization_RequestDenied / Insufficient privileges`. O `Connect-MgGraph` abaixo pede o escopo explicitamente e funciona.
 
 1. Abra o **Cloud Shell** (ícone `>_` no topo do portal) em modo **PowerShell**.
-2
+2. Conecte ao Graph pedindo o escopo (vai aparecer um código para autenticar em `https://login.microsoft.com/device`):
+   ```powershell
+   Connect-MgGraph -Scopes "Application.ReadWrite.All"
+   ```
+   Autentique como **Global Administrator** e aceite o consentimento.
+3. Habilite o SSO nos dois apps usando `Invoke-MgGraphRequest` (já incluso no Cloud Shell — não precisa instalar módulo beta):
+   ```powershell
+   Invoke-MgGraphRequest -Method PATCH `
+     -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='a4a365df-50f1-4397-bc59-1a1564b8bb9c')/remoteDesktopSecurityConfiguration" `
+     -Body @{ isRemoteDesktopProtocolEnabled = $true }
+
+   Invoke-MgGraphRequest -Method PATCH `
+     -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='270efc09-cd0d-444b-a71f-39af4910ec45')/remoteDesktopSecurityConfiguration" `
+     -Body @{ isRemoteDesktopProtocolEnabled = $true }
+   ```
+4. Confirme (deve retornar `isRemoteDesktopProtocolEnabled  True`):
+   ```powershell
+   Invoke-MgGraphRequest -Method GET `
+     -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='a4a365df-50f1-4397-bc59-1a1564b8bb9c')/remoteDesktopSecurityConfiguration"
+   ```
+
+> Os dois App IDs são os apps de 1ª parte da Microsoft: `a4a365df-...` = **Microsoft Remote Desktop**; `270efc09-...` = **Windows Cloud Login**.
+
+> Se o `Connect-MgGraph` retornar "Insufficient privileges", sua conta não tem o papel necessário — verifique em **Entra ID → Roles and administrators** se você é **Global Administrator** (ou peça para quem é executar E.2).
+
+---
+
+## Parte F — Conectar e validar
+
+1. Confirme os hosts: **Host pools → `vdpool-avd-prd-cin-001` → Session hosts**. Os 2 hosts devem aparecer com **Status = Available** e **Agent = Available**.
+2. Em uma máquina cliente, abra o **Windows App** (ou o cliente **Remote Desktop**), ou acesse o web client em `https://client.wvd.microsoft.com/arm/webclient/`.
+3. Faça login como `joao.teste`.
+4. O workspace **vdws-avd-prd-cin-001** deve listar o desktop. Abra-o.
+5. Com SSO habilitado, a sessão entra sem segundo prompt de senha. Será solicitado MFA se houver Security Defaults / Conditional Access exigindo (recomendado em produção).
+
+### Critérios de sucesso
+- [ ] Os 2 session hosts aparecem como **Available**.
+- [ ] No portal das VMs, a propriedade confirma ingresso **Microsoft Entra ID** (não "Hybrid", não "AD DS").
+- [ ] `joao.teste` enxerga e abre o desktop publicado.
+- [ ] A conexão usa SSO (sem segundo pedido de senha do Windows).
+- [ ] Dentro da sessão, `whoami` retorna a conta no formato `azuread\joao.teste` ou equivalente Entra.
+
+---
+
+## Erros comuns
+
+| Sintoma | Causa provável | Correção |
+|---------|----------------|----------|
+| **Deploy falha:** `VMExtensionProvisioningError ... Microsoft.PowerShell.DSC ... Error downloading https://wvdportalstorageblob.blob.core.windows.net/...` | Sub-rede **sem saída para a internet** (default outbound aposentado em 30/09/2025) → agente AVD não baixa | Crie a **NAT Gateway** na `snet-hosts` (Parte A.1). Depois **remova os hosts com falha** (Session hosts → Remove) e exclua VMs/discos/NICs órfãos, então **+ Add** novamente |
+| **"Sign in Failed — Please check your username and password and try again"** (tela de cadeado) ao conectar, mas a credencial funciona no portal/web client | Tenant com **Security Defaults** exige MFA e o **SSO não está completo** → o login dentro do host não completa o MFA | Complete a **Parte E inteira**: E.1 (as duas RDP Properties) **e** E.2 (habilitar `remoteDesktopSecurityConfiguration` nos dois apps via Cloud Shell). Verifique nas RDP Properties que `enablerdsaadauth:i:1` e `targetisaadjoined:i:1` estão salvos |
+| "We couldn't connect... Your account is configured to prevent you from using this device" | Falta o papel **Virtual Machine User Login** | Refaça a Parte C |
+| Recurso não aparece no cliente | Usuário não atribuído ao App Group | Refaça a Parte D |
+| Login falha mas credencial é válida na nuvem | Host **sem saída** para alcançar `login.microsoftonline.com` no logon | Confirme a NAT Gateway (A.1); teste no host: `Test-NetConnection login.microsoftonline.com -Port 443` |
+| `az rest` retorna `Authorization_RequestDenied / Insufficient privileges` ao habilitar o SSO | Token do Azure CLI não carrega `Application.ReadWrite.All` | Use `Connect-MgGraph -Scopes "Application.ReadWrite.All"` + `Invoke-MgGraphRequest` (Parte E.2) como Global Admin |
+| Host fica em *Unavailable* | Extensão de Entra join falhou / sem saída para internet | Verifique NSG/saída da `snet-hosts`; reimplante o host |
+
+> 💡 **Diagnóstico decisivo de falha de login:** **Entra ID → Monitoring → Sign-in logs**, filtrando pelo usuário. Se **não houver** registro da tentativa no horário, é **rede** (host não alcançou o Entra). Se **houver** registro com falha, leia o *Failure reason* (normalmente MFA/SSO).
+
+---
+
+## Limpeza (opcional ao final da trilha)
+> **Não delete agora** se for fazer o Lab 02 em seguida — ele reutiliza este host pool. Quando encerrar a trilha cloud-native, exclua o `rg-avd-prd-cin-001` ou apenas as VMs `vmavde-cin-0x` para parar a cobrança de compute.
+
+---
+
+## Próximo lab
+➡️ **Lab 02 — FSLogix integrado ao Microsoft Entra ID**, reaproveitando exatamente este host pool.

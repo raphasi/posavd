@@ -6,7 +6,34 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Avan%C3%A7ado-red?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-90--120_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Identidade-AD_DS_h%C3%ADbrido-2F2F8F?style=for-the-badge&logo=windows&logoColor=white" alt="Identidade">
+</p>
+
+## 🗺️ Arquitetura deste laboratório
+
+```mermaid
+flowchart LR
+    U["👤 Usuário híbrido"] -->|"login (UPN Entra)"| E["🔐 Microsoft Entra ID"]
+    subgraph RG["📦 rg-avd-prd-cin-001 · Central India"]
+      DC["🗄️ vmdc-cin-01<br/>AD DS · avdlab.local<br/>DNS 10.50.3.4"]
+      subgraph SN["snet-hosts"]
+        HP["🖥️ vdpool-avd-prd-cin-002<br/>2 hosts domain-joined"]
+      end
+    end
+    DC -->|"1 · domain join (OU=AVD)"| HP
+    DC -->|"2 · Entra Connect sync"| E
+    E -->|"3 · autoriza conexão AVD"| HP
+```
+
+> **Leitura:** o `vmdc-cin-01` é o controlador do domínio `avdlab.local`; os hosts ingressam nele. O **Entra Connect** sincroniza os usuários para o Entra ID (a autenticação do AVD sempre passa pela nuvem). Esta estrutura é reaproveitada pelos Labs 04, 05 e 06.
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|

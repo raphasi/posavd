@@ -6,7 +6,28 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Avan%C3%A7ado-red?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-90--120_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Foco-Golden_Image_pt--BR-2F2F8F?style=for-the-badge" alt="Golden Image">
+</p>
+
+## 🗺️ Arquitetura deste laboratório
+
+```mermaid
+flowchart LR
+    B["🛠️ vmbld-cin-01<br/>Win11 · pt-BR · ABNT2 · Brasília"] -->|"1 · Sysprep /generalize"| C["📸 Capture"]
+    C -->|"2 · publica versão"| G["🖼️ galavdprdcin001<br/>win11-avd-prd-cin · v1.0.0"]
+    G -->|"3 · deploy de hosts"| HP["🖥️ Session hosts em pt-BR"]
+    DC["🗄️ AD DS · GPO-AVD-Baseline"] -.->|"GPO na OU AVD"| HP
+```
+
+> **Leitura:** a VM de build recebe idioma/teclado/fuso e é generalizada (Sysprep) — a imagem vai para o **Compute Gallery** versionada. Novos hosts nascem em pt-BR a partir dela; a **GPO** do domínio garante a conformidade contínua. A imagem define o *estado inicial*, a GPO mantém o *estado*.
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|

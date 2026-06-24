@@ -6,7 +6,31 @@
 
 ---
 
-## Ficha do laboratório
+<p align="center">
+  <img src="https://img.shields.io/badge/Dificuldade-Avan%C3%A7ado-red?style=for-the-badge" alt="Dificuldade">
+  <img src="https://img.shields.io/badge/Tempo-75--90_min-blue?style=for-the-badge" alt="Tempo">
+  <img src="https://img.shields.io/badge/Portal--first-Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Portal-first">
+  <img src="https://img.shields.io/badge/Perfis-FSLogix_%2B_Entra_Kerberos-2F2F8F?style=for-the-badge" alt="FSLogix">
+</p>
+
+## 🗺️ Arquitetura deste laboratório
+
+```mermaid
+flowchart LR
+    subgraph HOST["🖥️ Session host · Entra-joined (Lab 01)"]
+      FS["🧩 FSLogix"]
+    end
+    HOST -->|"1 · cloud Kerberos TGT"| E["🔐 Microsoft Entra ID<br/>Entra Kerberos"]
+    E -->|"2 · ticket cifs/..."| ST
+    FS -->|"3 · monta o perfil"| ST["💾 stavdfsxentracin001<br/>Azure Files · share 'profiles'"]
+    ST --> P["📄 Profile_usuario.vhdx"]
+```
+
+> **Leitura:** sem controlador de domínio, o host Entra-joined pega um *ticket Kerberos de nuvem* no Entra ID e monta o **Azure Files** via SMB. O FSLogix grava o perfil do usuário como um `.vhdx` no share — perfil que segue o usuário entre os hosts.
+
+---
+
+## 🧭 Ficha do laboratório
 
 | Item | Detalhe |
 |------|---------|
