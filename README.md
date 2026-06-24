@@ -20,6 +20,8 @@ Seis laboratórios **passo a passo via Portal do Azure** (portal-first), com scr
 
 > 🏷️ Nomenclatura no padrão **Cloud Adoption Framework (CAF)** — ambiente **prd**, região **Central India (cin)**. Detalhes em [`00_Padrao_de_Nomenclatura_CAF.md`](00_Padrao_de_Nomenclatura_CAF.md).
 
+> 🧭 **Não sabe qual trilha seguir?** Comece pelo [**Guia de decisão — Entra ID vs AD DS**](00_Guia_Decisao_Identidade_Entra_vs_ADDS.md).
+
 ## 🧭 Trilha de laboratórios
 
 | # | Lab | Foco | Nível | Depende de |
