@@ -2,7 +2,7 @@
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first). O passo de habilitar a identidade AD DS no storage exige um script Microsoft (`AzFilesHybrid`) — é obrigatório, sem equivalente de portal.
-> **Dependência:** **Lab 03** (domínio `avdlab.local` + host pool `vdpool-avd-prd-cin-002`). Idealmente **Lab 04** (imagem pt-BR).
+> **Dependência:** **Lab 03** (domínio + host pool `vdpool-avd-prd-cin-002`) e **Lab 04** (SSO). A imagem customizada é opcional e vem depois, no **Lab 06**.
 
 ---
 
@@ -166,9 +166,9 @@ Não há botão de portal para "domain join" da storage account em AD DS on-prem
 
 ## Parte E — Configurar o FSLogix nos hosts (via GPO do domínio)
 
-Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Reaproveite a GPO `GPO-AVD-Baseline` do Lab 04 ou crie `GPO-FSLogix`.
+Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Crie uma GPO `GPO-FSLogix` na OU `AVD` (ou reaproveite uma baseline existente).
 
-1. No `vm-adds-prd-cin`, garanta os **ADMX do FSLogix** no Central Store (`\\avdlab.local\SYSVOL\...\PolicyDefinitions`). (Feito no Lab 04; senão importe agora.)
+1. No `vm-adds-prd-cin`, garanta os **ADMX do FSLogix** no Central Store (`\\avdlab.local\SYSVOL\...\PolicyDefinitions`) — importe agora se ainda não fez.
 2. **Group Policy Management → OU AVD → editar a GPO** → *Computer Configuration → Policies → Administrative Templates → FSLogix → Profile Containers*:
    | Política | Valor |
    |----------|-------|
@@ -237,4 +237,4 @@ Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Rea
 ---
 
 ## Próximo lab
-➡️ **Lab 06 — Scaling Plan nativo do AVD** para agendar startup/shutdown desta estrutura, reduzindo custo fora do horário.
+➡️ **Lab 06 — Imagem customizada de Windows 11** (idioma, teclado, fuso, GPOs) e publicação no Compute Gallery, para esta mesma estrutura AD DS.

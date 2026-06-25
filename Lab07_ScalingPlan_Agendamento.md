@@ -1,4 +1,4 @@
-# Lab 06 — Agendamento de startup/shutdown com Scaling Plan nativo do AVD
+# Lab 07 — Agendamento de startup/shutdown com Scaling Plan nativo do AVD
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first).

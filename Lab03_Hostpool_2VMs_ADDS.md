@@ -2,7 +2,7 @@
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first)
-> **Resultado:** Cria-se um **AD DS próprio** (controlador de domínio em uma VM) sincronizado com o Entra ID, e um host pool com 2 hosts **domain-joined**. Esta estrutura é a base dos **Labs 04, 05 e 06**.
+> **Resultado:** Cria-se um **AD DS próprio** (controlador de domínio em uma VM) sincronizado com o Entra ID, e um host pool com 2 hosts **domain-joined**. Esta estrutura é a base dos **Labs 04 a 07**.
 
 ---
 
@@ -161,7 +161,7 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
    - **Domain to join:** **Active Directory** (não "Microsoft Entra ID").
      - **AD domain join UPN:** uma conta com permissão de join no domínio, ex. `dcadmin@avdlab.local` (ou conta de serviço dedicada).
      - **Password:** senha da conta.
-     - **Specify domain or unit:** marque e informe a OU alvo **`OU=AVD,DC=avdlab,DC=local`** (assim os hosts caem na OU certa, importante para GPO no Lab 04).
+     - **Specify domain or unit:** marque e informe a OU alvo **`OU=AVD,DC=avdlab,DC=local`** (assim os hosts caem na OU certa, importante para GPO no Lab 06).
    - **Virtual Machine Administrator account:** `localadmin` + senha.
 4. **Workspace:** **Register desktop app group = Yes** → workspace `vdws-avd-prd-cin-001` (criar se não existir).
 5. **Review + create** → **Create**.
@@ -238,9 +238,9 @@ As mesmas consoles do Lab 01 valem aqui: **Host pool → Sessions** (ver usuári
 ---
 
 ## Importante — não destrua esta estrutura
-Os **Labs 04 (imagem), 05 (FSLogix + private endpoints) e 06 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vm-adds-prd-cin` e `vdpool-avd-prd-cin-002` ativos.
+Os **Labs 04 (SSO), 05 (FSLogix + private endpoints), 06 (imagem) e 07 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vm-adds-prd-cin` e `vdpool-avd-prd-cin-002` ativos.
 
 ---
 
 ## Próximo lab
-➡️ **Lab 04 — Criar imagem customizada de Windows 11** (idioma, teclado, fuso, GPOs) e publicá-la no Compute Gallery para reuso nesta estrutura AD DS.
+➡️ **Lab 04 — Habilitar Single Sign-On (SSO) no cenário AD DS** (hybrid join + RDP property), reaproveitando o passo de tenant do Lab 02.

@@ -1,4 +1,4 @@
-# Lab 04 — Imagem customizada de Windows 11 (idioma, teclado, fuso horário e GPOs)
+# Lab 06 — Imagem customizada de Windows 11 (idioma, teclado, fuso horário e GPOs)
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first). Os ajustes de SO (idioma/teclado/fuso e Sysprep) exigem comandos **no SO da VM** — não há equivalente de portal, então são passos obrigatórios.
@@ -175,7 +175,7 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
 4. Botão direito na GPO → **Edit** e configure, por exemplo:
    - **Idioma/Regional (reforço):** *Computer Configuration → Policies → Administrative Templates → Control Panel → Regional and Language Options* → force o idioma de exibição pt-BR.
    - **Fuso horário:** *Computer Configuration → Preferences → Control Panel Settings → não há item direto; use* um item de registro/preferência ou a configuração de SO já vinda da imagem. (Em lab, o fuso da imagem já basta.)
-   - **FSLogix (preparando o Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
+   - **FSLogix (se ainda não configurado no Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
    - **Segurança/UX AVD:** desabilitar tela de bloqueio por inatividade agressiva, configurar timeouts de sessão (*Administrative Templates → Windows Components → Remote Desktop Services → Remote Desktop Session Host → Session Time Limits*).
    - **Não armazenar perfis em roaming local** etc.
 5. Para importar os **ADMX do FSLogix** (útil já neste lab): baixe o FSLogix, copie `fslogix.admx`/`.adml` para `C:\Windows\PolicyDefinitions` (ou para o Central Store em `\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions`).
@@ -233,4 +233,4 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
 ---
 
 ## Próximo lab
-➡️ **Lab 05 — FSLogix integrado ao AD DS com Private Endpoints**, usando os hosts desta estrutura (idealmente já com a imagem deste lab).
+➡️ **Lab 07 — Scaling Plan nativo do AVD** para agendar o startup/shutdown desta estrutura, reduzindo custo fora do horário.

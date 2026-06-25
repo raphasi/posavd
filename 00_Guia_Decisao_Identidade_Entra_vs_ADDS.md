@@ -6,7 +6,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Tipo-Guia_de_decisão-2F2F8F?style=for-the-badge" alt="Guia">
   <img src="https://img.shields.io/badge/Trilha_Entra_ID-Labs_01_·_02-0078D4?style=for-the-badge" alt="Entra">
-  <img src="https://img.shields.io/badge/Trilha_AD_DS-Labs_03_a_06-orange?style=for-the-badge" alt="AD DS">
+  <img src="https://img.shields.io/badge/Trilha_AD_DS-Labs_03_a_07-orange?style=for-the-badge" alt="AD DS">
 </p>
 
 ---
@@ -24,7 +24,7 @@ flowchart TD
     Q3 -->|"Não"| Q4{"Quer o caminho mais simples,<br/>sem servidor para manter?"}
     Q4 -->|"Sim"| ENTRA
     Q4 -->|"Tanto faz"| ENTRA
-    ADDS["🗄️ AD DS (híbrido)<br/>━━━━━━━━━━<br/>Trilha Labs 03 → 04 → 05 → 06<br/>DC + Entra Connect + GPO"]
+    ADDS["🗄️ AD DS (híbrido)<br/>━━━━━━━━━━<br/>Trilha Labs 03 → 04 → 05 → 06 → 07<br/>DC + Entra Connect + GPO"]
     ENTRA["🔐 Microsoft Entra ID (cloud-native)<br/>━━━━━━━━━━<br/>Trilha Labs 01 → 02<br/>sem servidor · Intune · SSO"]
 ```
 
@@ -45,7 +45,7 @@ flowchart TD
 | **Rede privada p/ perfis** | Possível, menos comum | **Private Endpoint** (Lab 05) |
 | **Apps Kerberos/LDAP clássicos** | ❌ Não atende | ✅ Atende |
 | **Complexidade / custo** | Menor | Maior (DC, sync, GPO) |
-| **Laboratórios** | **Labs 01 → 02** | **Labs 03 → 04 → 05 → 06** |
+| **Laboratórios** | **Labs 01 → 02** | **Labs 03 → 04 → 05 → 06 → 07** |
 
 ---
 

@@ -33,11 +33,12 @@ Seis laboratórios **passo a passo via Portal do Azure** (portal-first), com scr
 | 01 | [🔐 Host Pool 2 VMs — Entra ID](Lab01_Hostpool_2VMs_EntraID.md) | Host pool cloud-native + SSO | ★★ | — |
 | 02 | [💾 FSLogix — Entra ID](Lab02_FSLogix_EntraID.md) | Perfis em Azure Files (Entra Kerberos) | ★★★ | Lab 01 |
 | 03 | [🗄️ Host Pool 2 VMs — AD DS](Lab03_Hostpool_2VMs_ADDS.md) | Criação do AD DS + hosts domain-joined | ★★★ | — |
-| 04 | [🖼️ Imagem Windows 11 customizada](Lab04_Imagem_Windows11_Customizada.md) | Golden image pt-BR + Gallery + GPOs | ★★★ | Lab 03 |
+| 04 | [🔑 SSO no AD DS (hybrid join)](Lab04_SSO_ADDS.md) | Single Sign-On com hosts Entra hybrid joined | ★★★ | Lab 03 |
 | 05 | [🔌 FSLogix — AD DS + Private Endpoints](Lab05_FSLogix_ADDS_PrivateEndpoints.md) | Perfis com AD DS e acesso privado | ★★★ | Lab 03 |
-| 06 | [⚙️ Scaling Plan — agendamento](Lab06_ScalingPlan_Agendamento.md) | Startup/shutdown automático (FinOps) | ★★ | Host pool |
+| 06 | [🖼️ Imagem Windows 11 customizada](Lab06_Imagem_Windows11_Customizada.md) | Golden image pt-BR + Gallery + GPOs | ★★★ | Lab 03 |
+| 07 | [⚙️ Scaling Plan — agendamento](Lab07_ScalingPlan_Agendamento.md) | Startup/shutdown automático (FinOps) | ★★ | Host pool |
 
-> 🟦 **Trilha Entra ID:** Labs 01 → 02  ·  🟨 **Trilha AD DS:** Labs 03 → 04 → 05 → 06
+> 🟦 **Trilha Entra ID:** Labs 01 → 02  ·  🟨 **Trilha AD DS:** Labs 03 → 04 → 05 → 06 → 07
 
 ## 🗺️ Visão geral do ambiente
 
@@ -61,8 +62,8 @@ flowchart TB
         NAT["🚪 NAT Gateway"]
       end
       ST["💾 Azure Files<br/>perfis FSLogix<br/>(Labs 02 · 05)"]
-      GAL["🖼️ Compute Gallery<br/>imagem pt-BR (Lab 04)"]
-      SCALE["⚙️ Scaling Plan<br/>(Lab 06)"]
+      GAL["🖼️ Compute Gallery<br/>imagem pt-BR (Lab 06)"]
+      SCALE["⚙️ Scaling Plan<br/>(Lab 07)"]
     end
     CP --> P1
     CP --> P2
