@@ -60,7 +60,7 @@ Exemplo: **`rg-avd-prd-cin-001`**
 | Azure Compute Gallery | `gal` | `galavdprdcin001` (ver regra abaixo) |
 | Private Endpoint | `pep` | `pep-st-adds-prd-cin-001` |
 | Log Analytics Workspace | `log` | `log-avd-prd-cin-001` |
-| Virtual Machine | `vm` | `vmdc-cin-01` (ver regra abaixo) |
+| Virtual Machine | `vm` | `vm-adds-prd-cin` (ver regra abaixo) |
 
 ---
 
@@ -76,7 +76,7 @@ Alguns recursos **não aceitam** o formato com hífens ou têm limite de caracte
 
 | VM | Nome | Caracteres |
 |----|------|-----------|
-| Controlador de domínio | `vmdc-cin-01` | 11 |
+| Controlador de domínio | `vm-adds-prd-cin` | 15 |
 | VM de build da imagem | `vmbld-cin-01` | 12 |
 | Session hosts — cenário Entra ID (prefixo) | `vmavde-cin` → gera `vmavde-cin-0`, `vmavde-cin-1` | 12 |
 | Session hosts — cenário AD DS (prefixo) | `vmavda-cin` → gera `vmavda-cin-0`, `vmavda-cin-1` | 12 |
@@ -107,7 +107,7 @@ Use esta tabela como referência rápida ao revisar os labs.
 | Session hosts (Entra) | `avdh-entra-0x` | `vmavde-cin-0x` |
 | Session hosts (AD DS) | `avdh-adds-0x` | `vmavda-cin-0x` |
 | VM de build | `avdh-build-01` | `vmbld-cin-01` |
-| Controlador de domínio | `vm-dc-01` | `vmdc-cin-01` |
+| Controlador de domínio | `vm-dc-01` | `vm-adds-prd-cin` |
 | Storage FSLogix (Entra) | `stavdfslogixentra` | `stavdfsxentracin001` |
 | Storage FSLogix (AD DS) | `stavdfslogixadds` | `stavdfsxaddscin001` |
 | Private Endpoint | `pe-stavdfslogixadds` | `pep-st-adds-prd-cin-001` |

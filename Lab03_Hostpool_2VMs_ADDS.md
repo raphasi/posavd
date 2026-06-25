@@ -19,7 +19,7 @@
 flowchart LR
     U["👤 Usuário híbrido"] -->|"login (UPN Entra)"| E["🔐 Microsoft Entra ID"]
     subgraph RG["📦 rg-avd-prd-cin-001 · Central India"]
-      DC["🗄️ vmdc-cin-01<br/>AD DS · avdlab.local<br/>DNS 10.50.3.4"]
+      DC["🗄️ vm-adds-prd-cin<br/>AD DS · avdlab.local<br/>DNS 10.50.3.4"]
       subgraph SN["snet-hosts"]
         HP["🖥️ vdpool-avd-prd-cin-002<br/>2 hosts domain-joined"]
       end
@@ -29,7 +29,7 @@ flowchart LR
     E -->|"3 · autoriza conexão AVD"| HP
 ```
 
-> **Leitura:** o `vmdc-cin-01` é o controlador do domínio `avdlab.local`; os hosts ingressam nele. O **Entra Connect** sincroniza os usuários para o Entra ID (a autenticação do AVD sempre passa pela nuvem). Esta estrutura é reaproveitada pelos Labs 04, 05 e 06.
+> **Leitura:** o `vm-adds-prd-cin` é o controlador do domínio `avdlab.local`; os hosts ingressam nele. O **Entra Connect** sincroniza os usuários para o Entra ID (a autenticação do AVD sempre passa pela nuvem). Esta estrutura é reaproveitada pelos Labs 04, 05 e 06.
 
 ---
 
@@ -53,7 +53,7 @@ Empresa com **Active Directory tradicional**. As VMs do AVD ingressam no domíni
 | Recurso | Nome |
 |---------|------|
 | Domínio AD DS | `avdlab.local` |
-| VM controladora de domínio | `vmdc-cin-01` (sub-rede `snet-adds-prd-cin-001`, 10.50.3.0/24, IP estático 10.50.3.4) |
+| VM controladora de domínio | `vm-adds-prd-cin` (sub-rede `snet-adds-prd-cin-001`, 10.50.3.0/24, IP estático 10.50.3.4) |
 | Host Pool | `vdpool-avd-prd-cin-002` |
 | Workspace | `vdws-avd-prd-cin-001` (reutiliza, ou cria se não existir) |
 | Desktop App Group | `vdag-avd-prd-cin-002` |
@@ -71,7 +71,8 @@ Empresa com **Active Directory tradicional**. As VMs do AVD ingressam no domíni
 1. Barra de busca → **Virtual machines** → **+ Create → Azure virtual machine**.
 2. Aba **Basics:**
    - **Resource group:** `rg-avd-prd-cin-001`.
-   - **Virtual machine name:** `vmdc-cin-01`.
+   - **Virtual machine name:** `vm-adds-prd-cin`.
+     > ⚠️ **Nome de computador Windows ≤ 15 caracteres.** O padrão CAF completo seria `vm-adds-prd-cin-001`, mas como passa de 15 caracteres, usamos **`vm-adds-prd-cin`** (15) — o sufixo de instância `-001` é omitido (mesma regra dos nomes de VM no guia de nomenclatura). O portal **recusa** nomes de VM Windows com mais de 15 caracteres.
    - **Region:** Central India.
    - **Image:** **Windows Server 2022 Datacenter — x64 Gen2** (ou 2025).
    - **Size:** `Standard_B2s` (suficiente para lab) ou `Standard_D2s_v5`.
@@ -92,7 +93,7 @@ Um DC **precisa** de IP fixo.
 
 ## Parte B — Instalar a função AD DS e promover o DC
 
-1. Conecte na `vmdc-cin-01` (RDP / Bastion) como `dcadmin`.
+1. Conecte na `vm-adds-prd-cin` (RDP / Bastion) como `dcadmin`.
 2. Abra **Server Manager** → **Manage → Add Roles and Features**:
    - **Role-based or feature-based installation** → selecione o servidor local.
    - Marque **Active Directory Domain Services** → **Add Features** → avance → **Install**.
@@ -123,14 +124,14 @@ Para que os hosts encontrem o domínio, a VNet deve resolver DNS pelo DC.
 
 A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precisam ser sincronizados.
 
-> 🖥️ **Onde instalar (boa prática vs. laboratório):** em produção, o **ideal é instalar o Entra Connect numa VM membro dedicada** (não no controlador de domínio), por segurança e isolamento. **Neste laboratório**, para **reduzir o número de VMs e o custo**, vamos instalá-lo **no próprio `vmdc-cin-01`** — aceitável apenas em ambiente de estudo.
+> 🖥️ **Onde instalar (boa prática vs. laboratório):** em produção, o **ideal é instalar o Entra Connect numa VM membro dedicada** (não no controlador de domínio), por segurança e isolamento. **Neste laboratório**, para **reduzir o número de VMs e o custo**, vamos instalá-lo **no próprio `vm-adds-prd-cin`** — aceitável apenas em ambiente de estudo.
 
 > 👤 **Crie uma conta de serviço exclusiva para a sincronização** — **não** use uma conta de usuário nomeada (como `dcadmin`). Uma conta dedicada dá **controle e rastreabilidade**. No DC, em **Active Directory Users and Computers → OU AVD → New → User**, crie:
 > - **Nome de logon:** `svc.entraid` (ex.: `svc.entraid@avdlab.local`).
 > - Senha forte · **Password never expires** · **não** exigir troca no próximo logon.
 > - É essa conta que será usada como **conta de serviço do conector local do AD** no assistente.
 
-1. Na `vmdc-cin-01`, baixe e instale o **Microsoft Entra Connect** (antigo Azure AD Connect): site oficial da Microsoft → "Microsoft Entra Connect".
+1. Na `vm-adds-prd-cin`, baixe e instale o **Microsoft Entra Connect** (antigo Azure AD Connect): site oficial da Microsoft → "Microsoft Entra Connect".
 2. Execute o assistente (use **Customize** para poder definir a conta de serviço):
    - Informe credenciais de **Global Administrator** do tenant Entra.
    - Em **Connect your directories**, ao adicionar o domínio AD, escolha **usar uma conta de serviço existente** e informe **`svc.entraid`**. (Se preferir o padrão, o assistente cria uma conta `AAD_xxxx` automaticamente — mas a conta dedicada dá mais controle.) Para criar/elevar a conta do conector, será pedida **uma vez** uma credencial de **Enterprise Admin** (`AVDLAB\dcadmin`).
@@ -191,7 +192,7 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
 ## Parte G — Conectar e validar
 
 1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts:** os 2 hosts devem ficar **Available**.
-2. Abra o **Windows App** / web client → login com o **UPN do Entra** de `joao.teste` (ver nota da Parte D).
+2. **Conecte ao AVD** — abra o **web client** em **https://client.wvd.microsoft.com/arm/webclient/** (ou o **Windows App**) → faça login com o **UPN do Entra** de `joao.teste` (ver nota da Parte D).
 3. Abra o desktop publicado.
 4. Dentro da sessão, valide o ingresso no domínio:
    ```cmd
@@ -201,7 +202,7 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
    `Domain` deve ser `avdlab.local`; `whoami` deve retornar `avdlab\joao.teste`.
 
 ### Critérios de sucesso
-- [ ] `vmdc-cin-01` promovida a DC do domínio `avdlab.local` com IP 10.50.3.4.
+- [ ] `vm-adds-prd-cin` promovida a DC do domínio `avdlab.local` com IP 10.50.3.4.
 - [ ] VNet `vnet-avd-prd-cin-001` usa DNS 10.50.3.4.
 - [ ] `joao.teste` sincronizado para o Entra ID.
 - [ ] Os 2 hosts `vmavda-cin-0x` aparecem **Available** e na OU `AVD`.
@@ -237,7 +238,7 @@ As mesmas consoles do Lab 01 valem aqui: **Host pool → Sessions** (ver usuári
 ---
 
 ## Importante — não destrua esta estrutura
-Os **Labs 04 (imagem), 05 (FSLogix + private endpoints) e 06 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vmdc-cin-01` e `vdpool-avd-prd-cin-002` ativos.
+Os **Labs 04 (imagem), 05 (FSLogix + private endpoints) e 06 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vm-adds-prd-cin` e `vdpool-avd-prd-cin-002` ativos.
 
 ---
 

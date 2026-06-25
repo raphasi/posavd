@@ -167,9 +167,9 @@ Instale agentes/ferramentas corporativas, remova apps indesejados, aplique otimi
 
 ## Parte E — Aplicar GPOs corporativas via domínio (na estrutura do Lab 03)
 
-A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contínua** nos hosts ingressados na OU `AVD`. Configure no DC `vmdc-cin-01`.
+A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contínua** nos hosts ingressados na OU `AVD`. Configure no DC `vm-adds-prd-cin`.
 
-1. Conecte na `vmdc-cin-01` como `AVDLAB\dcadmin`.
+1. Conecte na `vm-adds-prd-cin` como `AVDLAB\dcadmin`.
 2. **Server Manager → Tools → Group Policy Management.**
 3. Expanda `Forest → Domains → avdlab.local → OU AVD` → botão direito → **Create a GPO in this domain, and Link it here** → nome `GPO-AVD-Baseline`.
 4. Botão direito na GPO → **Edit** e configure, por exemplo:

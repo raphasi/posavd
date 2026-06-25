@@ -23,7 +23,7 @@ flowchart LR
         PE["🔌 pep-st-adds-prd-cin-001<br/>IP privado 10.50.2.x"]
       end
     end
-    DC["🗄️ vmdc-cin-01 · AD DS"]
+    DC["🗄️ vm-adds-prd-cin · AD DS"]
     DNS["🧭 Private DNS<br/>privatelink.file.core.windows.net"]
     HP -->|"1 · Kerberos AD DS"| DC
     HP -->|"2 · SMB pela rede privada"| PE
@@ -101,7 +101,7 @@ A VNet já usa o DNS do DC (10.50.3.4, Lab 03). Para o `privatelink` funcionar c
 
 Não há botão de portal para "domain join" da storage account em AD DS on-prem/IaaS — usa-se o módulo **AzFilesHybrid**. Passo **obrigatório**.
 
-1. No **`vmdc-cin-01`** (tem linha de visão ao AD e ao Azure), abra **PowerShell como Admin**.
+1. No **`vm-adds-prd-cin`** (tem linha de visão ao AD e ao Azure), abra **PowerShell como Admin**.
 2. Baixe o módulo **AzFilesHybrid** (GitHub oficial `Azure-Samples/azure-files-samples` → releases) e descompacte.
 3. Execute:
    ```powershell
@@ -168,7 +168,7 @@ Não há botão de portal para "domain join" da storage account em AD DS on-prem
 
 Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Reaproveite a GPO `GPO-AVD-Baseline` do Lab 04 ou crie `GPO-FSLogix`.
 
-1. No `vmdc-cin-01`, garanta os **ADMX do FSLogix** no Central Store (`\\avdlab.local\SYSVOL\...\PolicyDefinitions`). (Feito no Lab 04; senão importe agora.)
+1. No `vm-adds-prd-cin`, garanta os **ADMX do FSLogix** no Central Store (`\\avdlab.local\SYSVOL\...\PolicyDefinitions`). (Feito no Lab 04; senão importe agora.)
 2. **Group Policy Management → OU AVD → editar a GPO** → *Computer Configuration → Policies → Administrative Templates → FSLogix → Profile Containers*:
    | Política | Valor |
    |----------|-------|
