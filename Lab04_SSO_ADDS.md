@@ -98,13 +98,21 @@ Em cada session host (`vmavda-cin-0` / `vmavda-cin-1`), via RDP como administrad
 
 ## Parte C — Confirmar o SSO no tenant (reaproveitado do Lab 02)
 
-O passo de habilitar o SSO nos service principals é **por tenant** e você já executou no **Lab 02** — **vale para este host pool também**, não precisa refazer. Só confirme (Cloud Shell, PowerShell):
+O passo de habilitar o SSO nos service principals é **por tenant** e você já executou no **Lab 02** — **vale para este host pool também**, não precisa refazer. Só confirme (Cloud Shell, modo **PowerShell**).
+
+> ⚠️ **O Cloud Shell não mantém a sessão do Graph entre aberturas.** Rode o `Connect-MgGraph` **antes** do GET — senão aparece `Invoke-MgGraphRequest: Authentication needed. Please call Connect-MgGraph`.
 
 ```powershell
+# 1) Conecte ao Graph (autentique no código mostrado, como Global Admin)
+Connect-MgGraph -Scopes "Application.Read.All"
+
+# 2) Confirme o SSO no app "Microsoft Remote Desktop"
 Invoke-MgGraphRequest -Method GET `
   -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='a4a365df-50f1-4397-bc59-1a1564b8bb9c')/remoteDesktopSecurityConfiguration"
 ```
-Deve retornar `isRemoteDesktopProtocolEnabled : True`. Se não, rode os dois `PATCH` da Parte E.2 do **Lab 01** (apps *Microsoft Remote Desktop* e *Windows Cloud Login*).
+Deve retornar `isRemoteDesktopProtocolEnabled : True`. Para conferir também o *Windows Cloud Login*, repita trocando o `appId` por `270efc09-cd0d-444b-a71f-39af4910ec45`.
+
+> Se vier `False`/vazio, rode os dois `PATCH` da Parte E.2 do **Lab 01** — mas aí conecte com escopo de **escrita**: `Connect-MgGraph -Scopes "Application.ReadWrite.All"`.
 
 ---
 
