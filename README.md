@@ -56,7 +56,7 @@ flowchart TB
           PE["🔌 Private Endpoint<br/>(Lab 05)"]
         end
         subgraph SA["snet-adds"]
-          DC["🗄️ vmdc-cin-01<br/>AD DS (Lab 03)"]
+          DC["🗄️ vm-adds-prd-cin<br/>AD DS (Lab 03)"]
         end
         NAT["🚪 NAT Gateway"]
       end
