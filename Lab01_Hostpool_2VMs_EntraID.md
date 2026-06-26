@@ -246,13 +246,12 @@ São **dois** sub-passos, ambos obrigatórios: (E.1) as RDP Properties no host p
 ### F.1 — Instalar o cliente AVD (primeira conexão)
 Esta é a sua primeira conexão ao AVD — escolha um caminho de acesso (instalação detalhada também no **Lab 02, Parte H.1**):
 
-- **Windows App (recomendado · Windows/macOS/iOS/Android):** **Microsoft Store** → buscar **"Windows App"**, ou https://aka.ms/windowsapp (no celular/macOS, **App Store / Google Play**).
-- **Cliente Remote Desktop clássico (Windows):** baixe em https://aka.ms/avddownload → instale → **Subscribe**.
-- **Web client (sem instalar nada):** acesse **https://client.wvd.microsoft.com/arm/webclient/** no navegador.
+- **Windows App (recomendado · Windows/macOS/iOS/Android):** instale pela **Microsoft Store** → **https://apps.microsoft.com/detail/9n1f85v9t8bn** (no celular/macOS, procure **"Windows App"** na **App Store / Google Play**). O **Windows App** substituiu o antigo "Remote Desktop client".
+- **Web client (sem instalar nada):** acesse **https://windows.cloud.microsoft/** no navegador.
 
 ### F.2 — Conectar e validar
 1. Confirme os hosts: **Host pools → `vdpool-avd-prd-cin-001` → Session hosts**. Os 2 hosts devem aparecer com **Status = Available** e **Agent = Available**.
-2. Abra o cliente instalado (ou o web client) e **Sign in** como `joao.teste`. Os workspaces atribuídos aparecem automaticamente.
+2. Abra o cliente instalado (ou o web client em **https://windows.cloud.microsoft/**) e **Sign in** como `joao.teste`. Os workspaces atribuídos aparecem automaticamente.
 3. O workspace **vdws-avd-prd-cin-001** lista o desktop — abra-o.
 4. Com SSO habilitado, a sessão entra sem segundo prompt de senha. Será solicitado MFA se houver Security Defaults / Conditional Access exigindo (recomendado em produção).
 

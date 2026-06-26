@@ -218,7 +218,7 @@ KeyUpdatedFrom     : vm-adds-prd-cin.seudominio.com
 
 ## Parte F — Conectar e validar
 
-1. **Conecte ao AVD** — abra **https://windows.cloud.microsoft/** (ou **https://client.wvd.microsoft.com/arm/webclient/**, ou o **Windows App**).
+1. **Conecte ao AVD** — abra **https://windows.cloud.microsoft/** (ou o **Windows App**, instalável em https://apps.microsoft.com/detail/9n1f85v9t8bn).
 2. Faça login com o **UPN do usuário sincronizado** (ex.: `useravd01@seudominio.com`).
 3. Abra o desktop publicado. Agora deve entrar **sem o segundo prompt de senha**.
 4. Dentro da sessão, no **contexto do usuário** (sem elevar):

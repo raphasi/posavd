@@ -192,7 +192,7 @@ A autenticação do AVD passa pelo Entra ID, então os usuários do AD DS precis
 ## Parte G — Conectar e validar
 
 1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts:** os 2 hosts devem ficar **Available**.
-2. **Conecte ao AVD** — abra o **web client** em **https://client.wvd.microsoft.com/arm/webclient/** (ou o **Windows App**) → faça login com o **UPN do Entra** de `joao.teste` (ver nota da Parte D).
+2. **Conecte ao AVD** — abra o **web client** em **https://windows.cloud.microsoft/** (ou o **Windows App**, instalável em https://apps.microsoft.com/detail/9n1f85v9t8bn) → faça login com o **UPN do Entra** de `joao.teste` (ver nota da Parte D).
 3. Abra o desktop publicado.
 4. Dentro da sessão, valide o ingresso no domínio:
    ```cmd
