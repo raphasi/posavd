@@ -55,6 +55,7 @@ Sem controlador de domínio, o Azure Files autentica via **Microsoft Entra Kerbe
 | Storage Account | `stavdfsxentracin001` (precisa ser único globalmente — ajuste se necessário) |
 | File Share | `profiles` |
 | Sub-rede FSLogix | `snet-fslogix-prd-cin-001` (10.50.2.0/24) |
+| Private Endpoint | `pep-st-entra-prd-cin-001` (Parte I) |
 
 ---
 
@@ -273,6 +274,57 @@ Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada
 
 ---
 
+## Parte I — Proteger o Azure Files com Private Endpoint (rede privada)
+
+Até aqui o FSLogix acessa o `stavdfsxentracin001` pelo **endpoint público** do Azure Files. Como **configuração final de segurança**, coloque o storage atrás de um **Private Endpoint**: ele ganha um **IP privado dentro da VNet** e o tráfego SMB dos perfis deixa de passar pela internet pública.
+
+> 💡 **Vantagem no cenário Entra ID:** como os hosts são Entra-joined e a VNet usa o **DNS padrão do Azure**, a **Private DNS Zone** resolve o FQDN automaticamente — **sem** precisar do encaminhamento manual de DNS que o cenário AD DS exige (Lab 05).
+
+### I.1 — Criar o Private Endpoint
+1. **Storage accounts → `stavdfsxentracin001` → Security + networking → Networking** → aba **Private endpoint connections** → **+ Private endpoint**.
+2. **Basics:**
+   - **Name:** `pep-st-entra-prd-cin-001`.
+   - **Region:** Central India.
+3. **Resource:**
+   - **Target sub-resource:** **file** (é o serviço de arquivos que o FSLogix usa).
+4. **Virtual Network:**
+   - **Virtual network:** `vnet-avd-prd-cin-001`.
+   - **Subnet:** `snet-fslogix-prd-cin-001`.
+   - **Private IP configuration:** *Dynamically allocate IP address* (padrão).
+5. **DNS:**
+   - **Integrate with private DNS zone:** **Yes**.
+   - O portal cria/usa a zona **`privatelink.file.core.windows.net`** e a **vincula à VNet** automaticamente.
+6. **Review + create → Create.** Aguarde ~1–2 min.
+
+### I.2 — Desabilitar o acesso público (recomendado)
+Com o Private Endpoint pronto, feche a porta pública do storage:
+1. **Storage account → Security + networking → Networking → aba Firewalls and virtual networks**.
+2. **Public network access:** selecione **Disabled** (ou **Enabled from selected virtual networks and IP addresses** deixando apenas a `vnet-avd-prd-cin-001`).
+3. **Save**.
+
+> ⚠️ O **Entra Kerberos** (Partes B/C) é *control plane* (autenticação via Entra ID), então **desabilitar o acesso público não quebra** a autenticação — apenas o **dado** (SMB, porta 445) passa a trafegar pelo **IP privado**.
+
+### I.3 — Validar a resolução e o acesso privados
+1. Em um host (na sessão, PowerShell/CMD), confirme que o FQDN resolve para **IP privado**:
+   ```cmd
+   nslookup stavdfsxentracin001.file.core.windows.net
+   ```
+   Deve retornar um endereço **10.50.2.x** (da `snet-fslogix`), **não** um IP público.
+2. Teste a porta SMB pelo caminho privado:
+   ```powershell
+   Test-NetConnection stavdfsxentracin001.file.core.windows.net -Port 445
+   ```
+   Espere `TcpTestSucceeded : True`.
+3. **Reinicie/reconecte** o usuário e confirme (Parte H.2, passo 4) que o **`.vhdx` continua sendo criado/montado** no share — agora pela **rede privada**.
+
+### Critérios de sucesso (Private Endpoint)
+- [ ] Private Endpoint `pep-st-entra-prd-cin-001` criado na `snet-fslogix`.
+- [ ] `nslookup` do FQDN retorna **IP 10.50.2.x** (privado).
+- [ ] Acesso público ao storage **Disabled**.
+- [ ] Perfil FSLogix continua montando (o `.vhdx` aparece no share) pela rede privada.
+
+---
+
 ## Erros comuns
 
 | Sintoma | Causa | Correção |
@@ -281,6 +333,8 @@ Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada
 | `klist` sem ticket cifs | `CloudKerberosTicketRetrievalEnabled` não aplicado | Refaça a Parte F e reinicie o host |
 | Erro de acesso negado ao share | RBAC de share faltando | Refaça D.1 (Storage File Data SMB Share Contributor) |
 | Falha de logon silencioso | MFA exigido na app de storage | Refaça a Parte E (excluir storage do MFA) |
+| Após ligar o Private Endpoint, `nslookup` ainda retorna IP público | Zona `privatelink.file.core.windows.net` não vinculada à VNet | Confirme o vínculo da Private DNS Zone à `vnet-avd-prd-cin-001` (Parte I.1) e aguarde a propagação |
+| Perfil deixa de montar após **Disabled** no acesso público | Private Endpoint não criado / host sem rota à `snet-fslogix` | Confirme o Private Endpoint na `snet-fslogix` e a resolução privada (Parte I.3) |
 
 ---
 
