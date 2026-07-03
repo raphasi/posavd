@@ -246,16 +246,10 @@ O acesso ao AVD é feito pelo **Windows App** (nome atual do antigo "Remote Desk
 2. Conecte como `joao.teste` (o mesmo usuário do Lab 01).
 3. Dentro da sessão, abra **PowerShell** e confirme o ticket de nuvem:
    ```cmd
-   klist cloud_debug
    klist
    ```
    Deve listar um ticket para `cifs/stavdfsxentracin001.file.core.windows.net`.
-4. No portal: Storage Account → **File shares → profiles → Browse**. Deve existir uma pasta do usuário contendo `Profile_joao.teste.vhdx` (ou `joao.teste_S-1-...`).
-5. Na sessão, confirme o tipo de perfil:
-   ```powershell
-   Get-CimInstance Win32_UserProfile | Select LocalPath, Special
-   ```
-   O perfil do usuário deve estar montado a partir do VHDX (não local temporário).
+4. **Confirme que o VHDX foi criado no Azure Files:** no portal → **Storage accounts → `stavdfsxentracin001` → Data storage → File shares → `profiles` → Browse**. Deve existir uma **pasta do usuário** (ex.: `joao.teste_S-1-5-21-…` ou `S-1-5-21-…_joao.teste`) contendo o arquivo **`Profile_joao.teste.vhdx`**. A presença desse `.vhdx` é a prova de que o FSLogix **criou e montou** o perfil no share.
 
 ### 🔎 Onde buscar logs (diagnóstico de causa raiz)
 Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada diferente do problema:
@@ -264,7 +258,7 @@ Se algo falhar, investigue **nesta ordem** — cada fonte aponta para uma camada
 |-------|------|----------------|
 | **Logs do FSLogix** | `C:\ProgramData\FSLogix\Logs\Profile` (e `...\Logs\ODFC`) | `Profile container attached` (sucesso) ou erros de rede/permissão / `Access is denied` |
 | **Visualizador de Eventos** | *Event Viewer →* `Applications and Services Logs → Microsoft → FSLogix → Apps` | Eventos de **Erro/Aviso** do FSLogix com código e descrição |
-| **Ticket Kerberos** | Na sessão: `klist` e `klist cloud_debug` | Deve haver ticket `cifs/<seu-storage>.file.core.windows.net`; se faltar → Parte F |
+| **Ticket Kerberos** | Na sessão: `klist` | Deve haver ticket `cifs/<seu-storage>.file.core.windows.net`; se faltar → Parte F |
 | **Conectividade SMB** | `Test-NetConnection <seu-storage>.file.core.windows.net -Port 445` | `TcpTestSucceeded: True` (porta 445 liberada na saída) |
 | **Ferramenta frx** | `& 'C:\Program Files\FSLogix\Apps\frx.exe' list-redirects` | Estado do redirecionamento de perfil |
 | **Sign-in logs (Entra)** | **Entra ID → Sign-in logs** | Falha ao obter token/ticket (MFA exigido, consent ausente) |
