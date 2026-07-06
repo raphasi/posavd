@@ -151,17 +151,19 @@ Como há AD DS, o caminho natural é **GPO**. Mas o **Windows Server não traz o
 1. Baixe o **FSLogix** (o `.zip` inclui os arquivos de política): **https://aka.ms/fslogix_download** → descompacte. Na pasta do pacote existe um diretório com:
    - **`fslogix.admx`**
    - **`fslogix.adml`** (dentro da subpasta de idioma, ex.: `en-US\fslogix.adml`)
-2. **Instale no Central Store do domínio** (recomendado — vale para todo o domínio, todos os admins passam a ver o FSLogix). No `vm-adds-prd-cin`, PowerShell como Admin:
+2. **Copie os arquivos para o repositório local de políticas do DC** (`C:\Windows\PolicyDefinitions`). Como neste laboratório há **um único DC**, isso já é suficiente. No `vm-adds-prd-cin`, PowerShell como Admin (ajuste o caminho de onde você descompactou o FSLogix):
    ```powershell
-   # (a) Se o Central Store ainda NÃO existir, crie-o copiando os PolicyDefinitions locais:
-   robocopy "C:\Windows\PolicyDefinitions" "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions" /E
-
-   # (b) Copie os arquivos do FSLogix (ajuste o caminho de onde você descompactou):
-   $store = "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions"
-   Copy-Item ".\fslogix.admx"        "$store\"        -Force
-   Copy-Item ".\en-US\fslogix.adml"  "$store\en-US\"  -Force
+   Copy-Item ".\fslogix.admx"        "C:\Windows\PolicyDefinitions\"        -Force
+   Copy-Item ".\en-US\fslogix.adml"  "C:\Windows\PolicyDefinitions\en-US\"  -Force
    ```
-   > **Sem Central Store?** Alternativa local no DC: copie `fslogix.admx` → `C:\Windows\PolicyDefinitions\` e `fslogix.adml` → `C:\Windows\PolicyDefinitions\en-US\`. (O Central Store é a boa prática.)
+   > 💡 **Tem mais de um controlador de domínio?** Aí o recomendado é o **Central Store** no SYSVOL (replica os ADMX para todos os DCs, e todo GPMC do domínio passa a ver o FSLogix). Crie-o (se não existir) e copie os arquivos para lá:
+   > ```powershell
+   > # Cria o Central Store (se ainda não existir), copiando os PolicyDefinitions locais:
+   > robocopy "C:\Windows\PolicyDefinitions" "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions" /E
+   > $store = "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions"
+   > Copy-Item ".\fslogix.admx"       "$store\"       -Force
+   > Copy-Item ".\en-US\fslogix.adml" "$store\en-US\" -Force
+   > ```
 3. **Feche e reabra o Group Policy Management** — agora aparece **FSLogix** em *Computer Configuration → Policies → Administrative Templates*.
 
 ### D.2 — Criar/editar a GPO com as chaves do FSLogix
