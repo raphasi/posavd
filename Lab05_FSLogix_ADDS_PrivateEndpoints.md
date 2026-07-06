@@ -79,7 +79,9 @@ flowchart LR
 Não há botão de portal para "domain join" da storage account em AD DS on-prem/IaaS — usa-se o módulo **AzFilesHybrid**. Passo **obrigatório**.
 
 1. No **`vm-adds-prd-cin`** (tem linha de visão ao AD e ao Azure), abra **PowerShell como Admin**.
-2. Baixe o módulo **AzFilesHybrid** (GitHub oficial `Azure-Samples/azure-files-samples` → releases) e descompacte.
+2. **Baixe o módulo AzFilesHybrid** (repositório oficial `Azure-Samples/azure-files-samples`):
+   - 📄 Instruções/README: **https://github.com/Azure-Samples/azure-files-samples/blob/master/AzFilesHybrid/readme.md**
+   - ⬇️ **Download do pacote:** **https://github.com/Azure-Samples/azure-files-samples/releases** → baixe o **`AzFilesHybrid.zip`** da release mais recente e **descompacte** (ex.: em `C:\AzFilesHybrid`).
 3. Execute:
    ```powershell
    # Pré-requisitos
@@ -143,17 +145,35 @@ Não há botão de portal para "domain join" da storage account em AD DS on-prem
 
 ## Parte D — Configurar o FSLogix nos hosts (via GPO do domínio)
 
-Como há AD DS, o caminho natural é **GPO** (alternativa: registro direto). Crie uma GPO `GPO-FSLogix` na OU `AVD` (ou reaproveite uma baseline existente).
+Como há AD DS, o caminho natural é **GPO**. Mas o **Windows Server não traz os modelos administrativos (ADMX) do FSLogix** — sem eles, as opções de FSLogix **não aparecem** no Group Policy Management. Então **primeiro** instalamos os ADMX, **depois** criamos a GPO.
 
-1. No `vm-adds-prd-cin`, garanta os **ADMX do FSLogix** no Central Store (`\\avdlab.local\SYSVOL\...\PolicyDefinitions`) — importe agora se ainda não fez.
-2. **Group Policy Management → OU AVD → editar a GPO** → *Computer Configuration → Policies → Administrative Templates → FSLogix → Profile Containers*:
+### D.1 — Baixar e instalar os ADMX/ADML do FSLogix
+1. Baixe o **FSLogix** (o `.zip` inclui os arquivos de política): **https://aka.ms/fslogix_download** → descompacte. Na pasta do pacote existe um diretório com:
+   - **`fslogix.admx`**
+   - **`fslogix.adml`** (dentro da subpasta de idioma, ex.: `en-US\fslogix.adml`)
+2. **Instale no Central Store do domínio** (recomendado — vale para todo o domínio, todos os admins passam a ver o FSLogix). No `vm-adds-prd-cin`, PowerShell como Admin:
+   ```powershell
+   # (a) Se o Central Store ainda NÃO existir, crie-o copiando os PolicyDefinitions locais:
+   robocopy "C:\Windows\PolicyDefinitions" "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions" /E
+
+   # (b) Copie os arquivos do FSLogix (ajuste o caminho de onde você descompactou):
+   $store = "\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions"
+   Copy-Item ".\fslogix.admx"        "$store\"        -Force
+   Copy-Item ".\en-US\fslogix.adml"  "$store\en-US\"  -Force
+   ```
+   > **Sem Central Store?** Alternativa local no DC: copie `fslogix.admx` → `C:\Windows\PolicyDefinitions\` e `fslogix.adml` → `C:\Windows\PolicyDefinitions\en-US\`. (O Central Store é a boa prática.)
+3. **Feche e reabra o Group Policy Management** — agora aparece **FSLogix** em *Computer Configuration → Policies → Administrative Templates*.
+
+### D.2 — Criar/editar a GPO com as chaves do FSLogix
+Crie uma GPO `GPO-FSLogix` na OU `AVD` (ou reaproveite uma baseline existente).
+1. **Group Policy Management → OU AVD → editar a GPO** → *Computer Configuration → Policies → Administrative Templates → FSLogix → Profile Containers*:
    | Política | Valor |
    |----------|-------|
    | **Enabled** | Enabled = `1` |
    | **VHD Locations** | `\\stavdfsxaddscin001.file.core.windows.net\profiles` |
    | **Delete Local Profile When VHD Should Apply** | Enabled |
    | **Flip Flop Profile Directory Name** | Enabled |
-3. Nos hosts: `gpupdate /force` (ou reinicie).
+2. Nos hosts: `gpupdate /force` (ou reinicie).
 
 > **Sem GPO?** Em cada host, mesmas chaves do Lab 02 Parte G, apenas trocando o `VHDLocations` para `\\stavdfsxaddscin001.file.core.windows.net\profiles`.
 
