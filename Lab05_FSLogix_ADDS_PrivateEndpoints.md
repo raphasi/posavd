@@ -229,11 +229,21 @@ Agora que o FSLogix funciona, vamos fechar o acesso público e forçar o tráfeg
 6. **Review + create → Create.**
 
 ### F.2 — Encaminhamento de DNS no DC (crítico no cenário AD DS)
-A VNet usa o **DNS do DC** (10.50.3.4, Lab 03). Para o `privatelink` resolver, o **DC precisa encaminhar** as consultas ao resolvedor do Azure:
-1. No `vm-adds-prd-cin`: **DNS Manager → botão direito no servidor → Forwarders → Edit → adicione `168.63.129.16`** → OK.
-2. Assim `*.file.core.windows.net` passa a resolver para o **IP privado** via a Private DNS Zone vinculada.
+A VNet usa o **DNS do DC** (10.50.3.4, Lab 03). Para o `privatelink` resolver, o **DC precisa encaminhar** as consultas ao resolvedor do Azure (**`168.63.129.16`**). Escolha **uma** das opções:
 
-> ⚠️ **Esta é a diferença-chave do cenário AD DS** (vs. Lab 02/Entra ID): como o DNS é o DC, sem esse **forwarder para 168.63.129.16** o FQDN continua resolvendo para IP público e o Private Endpoint "não funciona".
+**Opção A — Forwarder geral (mais simples, recomendado no lab):**
+1. No `vm-adds-prd-cin`: **DNS Manager → botão direito no servidor → Properties → aba Forwarders → Edit**.
+2. Adicione **apenas o IP `168.63.129.16`** → OK.
+   > ⚠️ **A aba "Forwarders" aceita SOMENTE endereços IP.** **Não** digite domínio aqui (ex.: `*.file.core.windows.net`) — é isso que gera o erro *"endereço não aceito"*. O forwarder geral manda todas as consultas não resolvidas ao Azure DNS, que conhece a Private DNS Zone da VNet.
+
+**Opção B — Conditional Forwarder (mais direcionado, para produção):**
+1. **DNS Manager → Conditional Forwarders → botão direito → New Conditional Forwarder**.
+2. **DNS Domain:** `file.core.windows.net`  ← **sem o `*.` e sem `privatelink`** (curinga **não** é aceito).
+3. **IP addresses of the master servers:** `168.63.129.16` → **OK**.
+
+Depois, `stavdfsxaddscin001.file.core.windows.net` passa a resolver para o **IP privado** (10.50.2.x) via a Private DNS Zone vinculada à VNet.
+
+> ⚠️ **Esta é a diferença-chave do cenário AD DS** (vs. Lab 02/Entra ID): como o DNS é o DC, sem esse encaminhamento para `168.63.129.16` o FQDN continua resolvendo para IP público e o Private Endpoint "não funciona".
 
 ### F.3 — Desabilitar o acesso público
 1. Storage Account → **Security + networking → Networking → Firewalls and virtual networks**.
@@ -266,6 +276,7 @@ A VNet usa o **DNS do DC** (10.50.3.4, Lab 03). Para o `privatelink` resolver, o
 | Perfil cai para temporário **na Parte E** (público) | Storage não ingressado no AD, RBAC ausente ou `VHDLocations` errado | Refaça Partes B / C / D; cheque `klist` e o log do FSLogix |
 | `Join-AzStorageAccountForAuth` falha | OU incorreta ou sem permissão no AD | Confirme a OU `OU=AVD,DC=avdlab,DC=local` e use conta Domain Admin |
 | **Após a Parte F**, `nslookup` ainda retorna IP público | **DC sem forwarder** p/ 168.63.129.16, ou zona `privatelink` não vinculada à VNet | Refaça F.2; confirme o link da zona na VNet |
+| Erro **"endereço não aceito"** ao configurar o forwarder | Você digitou um **domínio** (`*.file.core.windows.net`) na aba **Forwarders** (que só aceita IP) | Use **só o IP `168.63.129.16`** na aba Forwarders, **ou** um **Conditional Forwarder** com domínio `file.core.windows.net` (sem `*.`) — Parte F.2 |
 | **Após a Parte F**, perfil deixa de montar | PE não criado / host sem rota à `snet-fslogix` / resolução ainda pública | Confirme o Private Endpoint e a resolução privada (F.4) |
 | Acesso negado ao montar share | Storage não ingressado no AD ou RBAC ausente | Refaça Parte B e C.1 |
 
