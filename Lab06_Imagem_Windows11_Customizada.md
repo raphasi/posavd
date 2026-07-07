@@ -214,8 +214,49 @@ reg query "HKU\.DEFAULT\Control Panel\International" /v LocaleName    # esperado
 
 > Após isso, reinicie e reconecte para confirmar que o SO está totalmente em pt-BR.
 
-### B.5 — (Opcional) Personalizações adicionais na imagem
-Instale agentes/ferramentas corporativas, remova apps indesejados, aplique otimizações do **Virtual Desktop Optimization Tool (VDOT)** se desejar. Mantenha a imagem enxuta.
+### B.5 — Instalar aplicações (customização da imagem)
+
+Para a imagem se mostrar de fato **customizada**, instale algumas aplicações corporativas. Use sempre **instaladores por máquina (EXE/MSI, all-users)** — **evite apps da Microsoft Store / MSIX**, que instalam por usuário e voltariam a quebrar o Sysprep com `0x80073cf2`.
+
+**Trio sugerido (gratuitos):**
+
+| Aplicação | Uso | Download |
+|-----------|-----|----------|
+| **draw.io Desktop** | Diagramas de arquitetura | [github.com/jgraph/drawio-desktop/releases](https://github.com/jgraph/drawio-desktop/releases) |
+| **7-Zip** | Compactação de arquivos | [7-zip.org/download.html](https://www.7-zip.org/download.html) |
+| **Notepad++** | Editor de texto/código | [notepad-plus-plus.org/downloads](https://notepad-plus-plus.org/downloads/) |
+| *(opcional)* **Google Chrome** | Navegador | [google.com/chrome](https://www.google.com/chrome/) |
+
+**Opção 1 (mais simples) — via `winget`** (PowerShell como Admin), instalando no escopo **machine** (all-users):
+```powershell
+winget install --id JGraph.Draw          --scope machine --silent --accept-package-agreements --accept-source-agreements
+winget install --id 7zip.7zip            --scope machine --silent --accept-package-agreements --accept-source-agreements
+winget install --id Notepad++.Notepad++  --scope machine --silent --accept-package-agreements --accept-source-agreements
+# Opcional:
+# winget install --id Google.Chrome      --scope machine --silent --accept-package-agreements --accept-source-agreements
+```
+
+**Opção 2 — download direto + instalação silenciosa** (se o `winget` não estiver disponível na VM):
+```powershell
+# draw.io (instalador NSIS — /S = silencioso). Ajuste a versão para a mais recente da página de releases:
+Start-Process ".\draw.io-x64-<versao>.exe" -ArgumentList "/S" -Wait
+
+# 7-Zip (MSI):
+Start-Process msiexec.exe -ArgumentList "/i `".\7z-x64.msi`" /qn /norestart" -Wait
+
+# Notepad++ (instalador NSIS — /S = silencioso):
+Start-Process ".\npp.<versao>.Installer.x64.exe" -ArgumentList "/S" -Wait
+```
+
+> ✅ **Conferir que instalou por máquina** (aparece no `Program Files` / lista de programas do sistema, não só no seu perfil):
+> ```powershell
+> Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+>                   "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
+>   Where-Object DisplayName -match "draw.io|7-Zip|Notepad\+\+|Chrome" |
+>   Select-Object DisplayName, DisplayVersion
+> ```
+
+> 💡 Se quiser reduzir/otimizar a imagem para AVD, aplique também o **Virtual Desktop Optimization Tool (VDOT)** ([github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool](https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool)). Mantenha a imagem enxuta.
 
 ### B.6 — Checagem final antes do Sysprep (obrigatório)
 Você já validou o **usuário logado** (Validação 1, após B.3) e o **perfil Default** (Validação 2, após B.4). Antes de generalizar, confirme que **não há reboot pendente** — o Sysprep **falha** se houver:
