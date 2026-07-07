@@ -216,47 +216,56 @@ reg query "HKU\.DEFAULT\Control Panel\International" /v LocaleName    # esperado
 
 ### B.5 — Instalar aplicações (customização da imagem)
 
-Para a imagem se mostrar de fato **customizada**, instale algumas aplicações corporativas. Use sempre **instaladores por máquina (EXE/MSI, all-users)** — **evite apps da Microsoft Store / MSIX**, que instalam por usuário e voltariam a quebrar o Sysprep com `0x80073cf2`.
+Para a imagem se mostrar de fato **customizada**, instale algumas aplicações. Use sempre **instaladores por máquina (MSI/EXE, all-users)** — **evite apps da Microsoft Store / MSIX**, que instalam por usuário e voltariam a quebrar o Sysprep com `0x80073cf2`.
 
-**Trio sugerido (gratuitos):**
+> ⚠️ O **`winget` NÃO vem** na imagem Windows 11 **multi-session** (dá *"'winget' não é reconhecido..."*). Por isso este passo usa **download direto + instalação silenciosa**.
 
-| Aplicação | Uso | Download |
-|-----------|-----|----------|
+**Trio sugerido (gratuitos, todos por máquina):**
+
+| Aplicação | Uso | Página de download |
+|-----------|-----|--------------------|
 | **draw.io Desktop** | Diagramas de arquitetura | [github.com/jgraph/drawio-desktop/releases](https://github.com/jgraph/drawio-desktop/releases) |
-| **7-Zip** | Compactação de arquivos | [7-zip.org/download.html](https://www.7-zip.org/download.html) |
-| **Notepad++** | Editor de texto/código | [notepad-plus-plus.org/downloads](https://notepad-plus-plus.org/downloads/) |
-| *(opcional)* **Google Chrome** | Navegador | [google.com/chrome](https://www.google.com/chrome/) |
+| **7-Zip** | Compactação de arquivos | [github.com/ip7z/7zip/releases](https://github.com/ip7z/7zip/releases) |
+| **Notepad++** | Editor de texto/código | [github.com/notepad-plus-plus/notepad-plus-plus/releases](https://github.com/notepad-plus-plus/notepad-plus-plus/releases) |
 
-**Opção 1 (mais simples) — via `winget`** (PowerShell como Admin), instalando no escopo **machine** (all-users):
+**Script — baixa a versão mais recente de cada um (via API do GitHub) e instala em silêncio** (PowerShell **como Admin**):
 ```powershell
-winget install --id JGraph.Draw          --scope machine --silent --accept-package-agreements --accept-source-agreements
-winget install --id 7zip.7zip            --scope machine --silent --accept-package-agreements --accept-source-agreements
-winget install --id Notepad++.Notepad++  --scope machine --silent --accept-package-agreements --accept-source-agreements
-# Opcional:
-# winget install --id Google.Chrome      --scope machine --silent --accept-package-agreements --accept-source-agreements
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = 'SilentlyContinue'
+$dl = "C:\Install"; New-Item -ItemType Directory -Force -Path $dl | Out-Null
+
+function Get-GhAsset($repo, $pattern) {
+  $rel = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'avd-lab' }
+  ($rel.assets | Where-Object name -like $pattern | Select-Object -First 1).browser_download_url
+}
+
+# draw.io — MSI = instalação POR MÁQUINA (all-users), sobrevive ao Sysprep
+$u = Get-GhAsset "jgraph/drawio-desktop" "draw.io-*.msi"
+Invoke-WebRequest $u -OutFile "$dl\drawio.msi"
+Start-Process msiexec.exe -ArgumentList "/i `"$dl\drawio.msi`" /qn /norestart" -Wait
+
+# 7-Zip — instalador x64 (/S = silencioso; vai para Program Files)
+$u = Get-GhAsset "ip7z/7zip" "7z*-x64.exe"
+Invoke-WebRequest $u -OutFile "$dl\7zip.exe"
+Start-Process "$dl\7zip.exe" -ArgumentList "/S" -Wait
+
+# Notepad++ — instalador x64 (/S = silencioso; vai para Program Files)
+$u = Get-GhAsset "notepad-plus-plus/notepad-plus-plus" "npp.*.Installer.x64.exe"
+Invoke-WebRequest $u -OutFile "$dl\npp.exe"
+Start-Process "$dl\npp.exe" -ArgumentList "/S" -Wait
 ```
 
-**Opção 2 — download direto + instalação silenciosa** (se o `winget` não estiver disponível na VM):
-```powershell
-# draw.io (instalador NSIS — /S = silencioso). Ajuste a versão para a mais recente da página de releases:
-Start-Process ".\draw.io-x64-<versao>.exe" -ArgumentList "/S" -Wait
-
-# 7-Zip (MSI):
-Start-Process msiexec.exe -ArgumentList "/i `".\7z-x64.msi`" /qn /norestart" -Wait
-
-# Notepad++ (instalador NSIS — /S = silencioso):
-Start-Process ".\npp.<versao>.Installer.x64.exe" -ArgumentList "/S" -Wait
-```
-
-> ✅ **Conferir que instalou por máquina** (aparece no `Program Files` / lista de programas do sistema, não só no seu perfil):
+> ✅ **Conferir que instalaram por máquina** (aparecem no Uninstall do HKLM, não só no seu perfil):
 > ```powershell
 > Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
 >                   "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
->   Where-Object DisplayName -match "draw.io|7-Zip|Notepad\+\+|Chrome" |
+>   Where-Object DisplayName -match "draw.io|7-Zip|Notepad\+\+" |
 >   Select-Object DisplayName, DisplayVersion
 > ```
 
-> 💡 Se quiser reduzir/otimizar a imagem para AVD, aplique também o **Virtual Desktop Optimization Tool (VDOT)** ([github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool](https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool)). Mantenha a imagem enxuta.
+> 💡 Para instalação **manual**, baixe pelas páginas acima e rode: `msiexec /i draw.io-<ver>.msi /qn` · `7z<ver>-x64.exe /S` · `npp.<ver>.Installer.x64.exe /S`.
+>
+> 💡 Se quiser otimizar a imagem para AVD, aplique também o **Virtual Desktop Optimization Tool (VDOT)** ([github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool](https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool)). Mantenha a imagem enxuta.
 
 ### B.6 — Checagem final antes do Sysprep (obrigatório)
 Você já validou o **usuário logado** (Validação 1, após B.3) e o **perfil Default** (Validação 2, após B.4). Antes de generalizar, confirme que **não há reboot pendente** — o Sysprep **falha** se houver:
