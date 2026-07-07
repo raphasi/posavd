@@ -89,6 +89,15 @@ Conecte na `vmbld-cin-01` como `localadmin`.
 
 **Passo 2 — Montar o ISO:** botão direito no arquivo → **Montar**. Ele recebe uma letra (ex.: `E:`). Os `.cab` de idioma ficam em `E:\LanguagesAndOptionalFeatures\`.
 
+> ⚠️ **Confirme a letra do ISO antes de rodar o script** — ela **muda após reboot/logoff** (o ISO desmonta). Se `E:` não for mais o ISO, o `Add-Package` falha com **`0x80070003` (caminho não encontrado)**. Verifique/remonte:
+> ```powershell
+> Get-Volume | Where-Object DriveType -eq 'CD-ROM' | Select-Object DriveLetter, FileSystemLabel
+> # Se necessário, remonte: Mount-DiskImage -ImagePath "C:\...\CLIENT_LOF_PACKAGES_OEM.iso"
+> # Confirme que o .cab existe na letra correta:
+> Test-Path "E:\LanguagesAndOptionalFeatures\Microsoft-Windows-Client-Language-Pack_x64_pt-br.cab"   # True
+> ```
+> Ajuste `$src` para a letra correta e só então execute o Passo 3.
+
 **Passo 3 — Instalar o pt-BR** (PowerShell **como Admin**; ajuste a letra se não for `E:`):
 ```powershell
 $src = "E:\LanguagesAndOptionalFeatures"
@@ -289,8 +298,4 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
 1. Conecte na `vm-adds-prd-cin` como `AVDLAB\dcadmin`.
 2. **Server Manager → Tools → Group Policy Management.**
 3. Expanda `Forest → Domains → avdlab.local → OU AVD` → botão direito → **Create a GPO in this domain, and Link it here** → nome `GPO-AVD-Baseline`.
-4. Botão direito na GPO → **Edit** e configure, por exemplo:
-   - **Idioma/Regional (reforço):** *Computer Configuration → Policies → Administrative Templates → Control Panel → Regional and Language Options* → force o idioma de exibição pt-BR.
-   - **Fuso horário:** *Computer Configuration → Preferences → Control Panel Settings → não há item direto; use* um item de registro/preferência ou a configuração de SO já vinda da imagem. (Em lab, o fuso da imagem já basta.)
-   - **FSLogix (se ainda não configurado no Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
-   - **Segurança/
+4. Botão direito na GPO → **Edit** e configure, por e
