@@ -250,16 +250,26 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
 1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts → + Add.**
 2. Na seção **Image**, escolha **Shared Image Gallery** → `galavdprdcin001` → `win11-avd-prd-cin` → versão `1.0.0`.
 3. Configure rede `snet-hosts-prd-cin-001` e **Domain join = Active Directory** na OU `AVD` (igual ao Lab 03).
-4. Após provisionar, conecte e valide:
+4. Após provisionar, conecte no **host novo** e rode a **mesma validação da B.6** para confirmar que ele **herdou** tudo da imagem:
    ```powershell
-   Get-WinSystemLocale          # pt-BR
-   Get-TimeZone                 # E. South America Standard Time
-   Get-WinUserLanguageList      # pt-BR / ABNT2
+   Write-Host "===== VALIDACAO DO HOST (herdado da imagem) =====" -ForegroundColor Cyan
+   [pscustomobject]@{
+     "UI Language Override"  = (Get-WinUILanguageOverride)
+     "System Locale"         = (Get-WinSystemLocale).Name
+     "Culture"               = (Get-Culture).Name
+     "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
+     "Time Zone"             = (Get-TimeZone).Id
+   } | Format-List
+   Get-WinUserLanguageList |
+     Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
+     Format-Table -AutoSize
    ```
+   **Esperado:** `pt-BR` (UI/Locale/Culture) · GeoId `32` · fuso `E. South America Standard Time` · teclado `0416:00010416` (ABNT2).
 
-### Critérios de sucesso
+### ✅ Critérios de sucesso
+- [ ] A **validação da B.6 passou na VM de build** (todos os valores corretos e **`Reboot pendente = False`**) **antes** do Sysprep.
 - [ ] Imagem `win11-avd-prd-cin` versão `1.0.0` replicada no gallery `galavdprdcin001`.
-- [ ] Novo host criado a partir da imagem inicia em **pt-BR, teclado ABNT2, fuso de Brasília** sem intervenção.
+- [ ] O **host novo** (Parte F) retorna no script de validação: **`pt-BR`** (UI/Locale/Culture), **GeoId `32`**, **fuso `E. South America Standard Time`** e **teclado `0416:00010416` (ABNT2)** — **sem intervenção**.
 - [ ] GPO `GPO-AVD-Baseline` vinculada à OU `AVD` e aplicada (`gpresult /r` lista a GPO).
 - [ ] Usuário novo (sem perfil prévio) herda o idioma/teclado/fuso ao primeiro logon.
 
