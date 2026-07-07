@@ -143,6 +143,21 @@ $xml | Out-File C:\Temp\pt-BR.xml -Encoding utf8
 # Aplica ao Default e System
 control.exe "intl.cpl,,/f:`"C:\Temp\pt-BR.xml`""
 ```
+
+**Confirmar que o B.4 deu certo** (o `control.exe` roda silencioso — não há retorno). Carregue a hive do usuário **Default** e verifique as chaves:
+```powershell
+# Perfil DEFAULT (o que novos usuários herdam):
+reg load "HKU\DEF" "C:\Users\Default\NTUSER.DAT"
+reg query "HKU\DEF\Control Panel\International" /v LocaleName        # esperado: pt-BR
+reg query "HKU\DEF\Control Panel\International\Geo" /v Nation         # esperado: 32 (Brasil)
+reg query "HKU\DEF\Keyboard Layout\Preload"                          # deve conter 00010416 (ABNT2)
+reg unload "HKU\DEF"
+
+# Conta SYSTEM (.DEFAULT):
+reg query "HKU\.DEFAULT\Control Panel\International" /v LocaleName    # esperado: pt-BR
+```
+> ✅ Se `LocaleName = pt-BR`, `Nation = 32` e o Preload contém `00010416`, o **B.4 funcionou** — todo usuário novo nascerá em pt-BR/ABNT2/Brasil. (Se o `reg unload` der "acesso negado", feche/reabra o PowerShell e refaça só o unload.)
+
 > Após isso, reinicie e reconecte para confirmar que o SO está totalmente em pt-BR.
 
 ### B.5 — (Opcional) Personalizações adicionais na imagem
