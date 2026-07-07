@@ -66,6 +66,47 @@ flowchart LR
 
 > ⚠️ **Não ingresse a VM de build no domínio.** A imagem capturada deve ser **genérica**; o domain join acontece no deploy dos hosts (Lab 03/05). Mantenha a build apenas como **workgroup** + admin local.
 
+### Alternativa — criar a VM de build via Azure CLI (se o portal bloquear a imagem multi-session)
+
+Em algumas assinaturas (típico de **Visual Studio/MSDN**) o "Create VM" do **portal oculta/bloqueia** a imagem Windows 11 multi-session. **Isso não é trava de licença** — o **Azure CLI** e o **assistente de host pool do AVD** criam normalmente. Nesse caso, provisione a VM de build pelo **Cloud Shell (Bash)**:
+
+```bash
+# === Variáveis (ajuste apenas a assinatura) ===
+SUB="<SEU_SUBSCRIPTION_ID>"          # obtenha com: az account show --query id -o tsv
+RG="rg-avd-prd-cin-001"
+LOC="centralindia"                   # India Central
+VNET="vnet-avd-prd-cin-001"
+SUBNET="snet-hosts-prd-cin-001"
+VM="vmbld-cin-01"
+SIZE="Standard_D2s_v5"               # série D (rápido p/ idioma). D4s_v5 = build ainda mais veloz.
+ADMIN="localadmin"
+SKU="win11-25h2-avd"                 # multi-session sem M365 (troque p/ win11-24h2-avd se preferir)
+IMG="MicrosoftWindowsDesktop:windows-11:${SKU}:latest"
+
+az account set --subscription "$SUB"
+
+# 1) Confirmar que a SKU existe (procure a linha desejada):
+az vm image list --publisher MicrosoftWindowsDesktop --offer windows-11 --all -o table | grep -i avd
+
+# 2) Senha do admin (fora do histórico):
+read -s -p "Senha do admin ($ADMIN): " ADMPWD; echo
+
+# 3) Criar a VM de build (Trusted Launch = requisito do Win11):
+az vm create \
+  --resource-group "$RG" --name "$VM" --image "$IMG" --location "$LOC" --size "$SIZE" \
+  --security-type TrustedLaunch --enable-secure-boot true --enable-vtpm true \
+  --vnet-name "$VNET" --subnet "$SUBNET" --public-ip-address "" --nsg "" \
+  --admin-username "$ADMIN" --admin-password "$ADMPWD" --os-disk-name "${VM}-osdisk" \
+  --only-show-errors
+
+# 4) Conferir o resultado:
+az vm show -g "$RG" -n "$VM" -d \
+  --query "{nome:name, estado:powerState, ipPrivado:privateIps, sku:storageProfile.imageReference.sku}" -o table
+```
+
+> 💡 Sem IP público — conecte por **Bastion** ou RDP interno. Se a SKU do passo 1 não listar, ajuste `SKU` para uma que apareça. Se a subnet estiver em outro RG, troque `--subnet "$SUBNET"` pelo **ID completo** da subnet. Depois de `estado: VM running`, conecte na VM e siga a partir do **B.1**.
+
+
 ---
 
 ## Parte B — Configurar idioma, teclado e fuso horário (no SO)
