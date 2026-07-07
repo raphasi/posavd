@@ -322,7 +322,7 @@ Get-AppxPackage -AllUsers -Name Microsoft.LanguageExperiencePackpt-BR | Remove-A
 $prov = (Get-AppxProvisionedPackage -Online).DisplayName
 Get-AppxPackage | Where-Object { -not $_.NonRemovable -and $prov -notcontains $_.Name } | Select-Object Name
 ```
-> ⚠️ **NÃO remova o que aparecer aqui sem antes olhar o que é.** A lista quase sempre traz apenas **frameworks/runtimes** — `Microsoft.VCLibs.*`, `Microsoft.NET.Native.*`, `Microsoft.UI.Xaml.*`, `Microsoft.WindowsAppRuntime.*`. Esses são **dependências**: **não remova** (quebra Store, Edge e outros apps). Remova **somente apps reais** deixados por usuário (como o `LanguageExperiencePack`). Frameworks passam no Sysprep; se algum **realmente** bloquear, o `setuperr.log` dirá o nome exato — e a correção é **provisioná-lo para todos** (`Add-AppxProvisionedPackage`), **não** removê-lo.
+> ⚠️ **NÃO remova o que aparecer aqui sem antes olhar o que é.** A lista quase sempre traz apenas **frameworks/runtimes** — `Microsoft.VCLibs.*`, `Microsoft.NET.Native.*`, `Microsoft.UI.Xaml.*`, `Microsoft.WindowsAppRuntime.*`. Esses são **dependências**: **não remova** (quebra Store, Edge e outros apps). Remova **somente apps reais** deixados por usuário — ex.: `LanguageExperiencePack` (idioma da Store) ou `NotepadPlusPlus`/outro app instalado pela **Microsoft Store** por engano (use sempre o instalador clássico do B.5). Frameworks passam no Sysprep; se algum **realmente** bloquear, o `setuperr.log` dirá o nome exato — e a correção é **provisioná-lo para todos** (`Add-AppxProvisionedPackage`), **não** removê-lo.
 
 ### C.2 — Executar o Sysprep
 
