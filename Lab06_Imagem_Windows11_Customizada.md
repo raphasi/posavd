@@ -95,16 +95,25 @@ read -s -p "Senha do admin ($ADMIN): " ADMPWD; echo
 az vm create \
   --resource-group "$RG" --name "$VM" --image "$IMG" --location "$LOC" --size "$SIZE" \
   --security-type TrustedLaunch --enable-secure-boot true --enable-vtpm true \
-  --vnet-name "$VNET" --subnet "$SUBNET" --public-ip-address "" --nsg "" \
+  --vnet-name "$VNET" --subnet "$SUBNET" \
+  --public-ip-address "${VM}-pip" --public-ip-sku Standard --nsg "${VM}-nsg" --nsg-rule RDP \
   --admin-username "$ADMIN" --admin-password "$ADMPWD" --os-disk-name "${VM}-osdisk" \
   --only-show-errors
 
 # 4) Conferir o resultado:
 az vm show -g "$RG" -n "$VM" -d \
-  --query "{nome:name, estado:powerState, ipPrivado:privateIps, sku:storageProfile.imageReference.sku}" -o table
+  --query "{nome:name, estado:powerState, ipPrivado:privateIps, ipPublico:publicIps, sku:storageProfile.imageReference.sku}" -o table
 ```
 
-> 💡 Sem IP público — conecte por **Bastion** ou RDP interno. Se a SKU do passo 1 não listar, ajuste `SKU` para uma que apareça. Se a subnet estiver em outro RG, troque `--subnet "$SUBNET"` pelo **ID completo** da subnet. Depois de `estado: VM running`, conecte na VM e siga a partir do **B.1**.
+> 💡 A VM sobe com **IP público + RDP (3389)** liberado — como o lab tem muito copia-e-cola, o RDP direto é mais prático que o Bastion Free. Conecte via **Área de Trabalho Remota** no `ipPublico` do passo 4.
+>
+> 🔒 **Segurança:** a regra `RDP` abre a porta 3389 para **qualquer origem**. Restrinja ao **seu IP** (veja em https://ifconfig.me) logo após criar:
+> ```bash
+> az network nsg rule update -g "$RG" --nsg-name "${VM}-nsg" -n RDP --source-address-prefixes <SEU_IP>/32
+> ```
+> E, ao terminar a imagem, **remova o IP público** (não precisa dele nos hosts): `az network public-ip delete -g "$RG" -n "${VM}-pip"` (desassocie da NIC antes, se necessário).
+>
+> Se a SKU do passo 1 não listar, ajuste `SKU` para uma que apareça. Se a subnet estiver em outro RG, troque `--subnet "$SUBNET"` pelo **ID completo** da subnet. Depois de `estado: VM running`, conecte e siga a partir do **B.1**.
 
 
 ---
