@@ -116,6 +116,23 @@ Set-WinHomeLocation -GeoId 32                            # 32 = Brasil
 Set-Culture -CultureInfo pt-BR
 ```
 
+**✔️ Validação 1 — o que foi aplicado no usuário logado** (confira antes de copiar para o Default):
+```powershell
+Write-Host "===== VALIDACAO 1 — usuario logado =====" -ForegroundColor Cyan
+[pscustomobject]@{
+  "UI Language Override"  = (Get-WinUILanguageOverride)
+  "System Locale"         = (Get-WinSystemLocale).Name
+  "Culture"               = (Get-Culture).Name
+  "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
+  "Time Zone"             = (Get-TimeZone).Id
+} | Format-List
+
+Get-WinUserLanguageList |
+  Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
+  Format-Table -AutoSize
+```
+**Esperado:** UI/Locale/Culture = `pt-BR` · GeoId = `32` · Time Zone = `E. South America Standard Time` · Teclado = `0416:00010416` (ABNT2). Se algo divergir, **reaplique B.1–B.3** antes de seguir.
+
 ### B.4 — Aplicar as configurações ao perfil **Default** (crítico para Sysprep)
 Para que **todo usuário novo** que logar nos hosts herde idioma/teclado/fuso, copie as configurações do usuário atual para o perfil **Default** e contas do sistema antes do Sysprep:
 ```powershell
@@ -144,7 +161,7 @@ $xml | Out-File C:\Temp\pt-BR.xml -Encoding utf8
 control.exe "intl.cpl,,/f:`"C:\Temp\pt-BR.xml`""
 ```
 
-**Confirmar que o B.4 deu certo** (o `control.exe` roda silencioso — não há retorno). Carregue a hive do usuário **Default** e verifique as chaves:
+**✔️ Validação 2 — o que foi copiado para o perfil Default** (o `control.exe` roda silencioso — não há retorno). Carregue a hive do usuário **Default** e verifique as chaves:
 ```powershell
 # Perfil DEFAULT (o que novos usuários herdam):
 reg load "HKU\DEF" "C:\Users\Default\NTUSER.DAT"
@@ -163,40 +180,13 @@ reg query "HKU\.DEFAULT\Control Panel\International" /v LocaleName    # esperado
 ### B.5 — (Opcional) Personalizações adicionais na imagem
 Instale agentes/ferramentas corporativas, remova apps indesejados, aplique otimizações do **Virtual Desktop Optimization Tool (VDOT)** se desejar. Mantenha a imagem enxuta.
 
-### B.6 — Validar TUDO antes de capturar a imagem (obrigatório)
-Antes do Sysprep, rode este script (PowerShell como Admin) e **confira cada valor** — assim você não descobre um idioma/teclado/fuso errado só depois de implantar os hosts:
+### B.6 — Checagem final antes do Sysprep (obrigatório)
+Você já validou o **usuário logado** (Validação 1, após B.3) e o **perfil Default** (Validação 2, após B.4). Antes de generalizar, confirme que **não há reboot pendente** — o Sysprep **falha** se houver:
 ```powershell
-Write-Host "===== VALIDACAO DA IMAGEM (pt-BR) =====" -ForegroundColor Cyan
-[pscustomobject]@{
-  "UI Language Override"  = (Get-WinUILanguageOverride)
-  "System Locale"         = (Get-WinSystemLocale).Name
-  "Culture"               = (Get-Culture).Name
-  "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
-  "Time Zone"             = (Get-TimeZone).Id
-} | Format-List
-
-Write-Host "Idiomas e teclados:" -ForegroundColor Cyan
-Get-WinUserLanguageList |
-  Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
-  Format-Table -AutoSize
-
-# Sysprep FALHA se houver reboot pendente:
 $pending = Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"
 Write-Host ("Reboot pendente: {0}  (precisa ser False para o Sysprep)" -f $pending) -ForegroundColor Yellow
 ```
-
-**Valores esperados:**
-| Item | Esperado |
-|------|----------|
-| UI Language Override | `pt-BR` |
-| System Locale | `pt-BR` |
-| Culture | `pt-BR` |
-| Home Location (GeoId) | `32` (Brasil) |
-| Time Zone | `E. South America Standard Time` |
-| Teclado (InputMethodTips) | `0416:00010416` (ABNT2) |
-| **Reboot pendente** | **`False`** |
-
-> ⛔ **Só prossiga para o Sysprep se todos baterem e `Reboot pendente = False`.** Se algum estiver errado, reaplique o passo correspondente (B.1–B.4). Se houver reboot pendente, **reinicie** até ficar `False`.
+> ⛔ **Só prossiga para o Sysprep se:** as Validações **1 (usuário, B.3)** e **2 (Default, B.4)** passaram — tudo em **pt-BR / ABNT2 / GeoId 32 / fuso Brasília** — **e** `Reboot pendente = False`. Se algum valor divergir, reaplique B.1–B.4; se houver reboot pendente, **reinicie** até ficar `False`.
 
 ---
 
@@ -265,7 +255,7 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
 1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts → + Add.**
 2. Na seção **Image**, escolha **Shared Image Gallery** → `galavdprdcin001` → `win11-avd-prd-cin` → versão `1.0.0`.
 3. Configure rede `snet-hosts-prd-cin-001` e **Domain join = Active Directory** na OU `AVD` (igual ao Lab 03).
-4. Após provisionar, conecte no **host novo** e rode a **mesma validação da B.6** para confirmar que ele **herdou** tudo da imagem:
+4. Após provisionar, conecte no **host novo** e rode a **mesma validação do usuário (Validação 1, B.3)** para confirmar que ele **herdou** tudo da imagem:
    ```powershell
    Write-Host "===== VALIDACAO DO HOST (herdado da imagem) =====" -ForegroundColor Cyan
    [pscustomobject]@{
@@ -282,7 +272,7 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
    **Esperado:** `pt-BR` (UI/Locale/Culture) · GeoId `32` · fuso `E. South America Standard Time` · teclado `0416:00010416` (ABNT2).
 
 ### ✅ Critérios de sucesso
-- [ ] A **validação da B.6 passou na VM de build** (todos os valores corretos e **`Reboot pendente = False`**) **antes** do Sysprep.
+- [ ] As **Validações 1 (usuário, B.3) e 2 (perfil Default, B.4) passaram** na VM de build, e **`Reboot pendente = False`** (B.6) **antes** do Sysprep.
 - [ ] Imagem `win11-avd-prd-cin` versão `1.0.0` replicada no gallery `galavdprdcin001`.
 - [ ] O **host novo** (Parte F) retorna no script de validação: **`pt-BR`** (UI/Locale/Culture), **GeoId `32`**, **fuso `E. South America Standard Time`** e **teclado `0416:00010416` (ABNT2)** — **sem intervenção**.
 - [ ] GPO `GPO-AVD-Baseline` vinculada à OU `AVD` e aplicada (`gpresult /r` lista a GPO).
