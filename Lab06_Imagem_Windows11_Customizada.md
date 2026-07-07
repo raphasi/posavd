@@ -298,4 +298,79 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
 1. Conecte na `vm-adds-prd-cin` como `AVDLAB\dcadmin`.
 2. **Server Manager → Tools → Group Policy Management.**
 3. Expanda `Forest → Domains → avdlab.local → OU AVD` → botão direito → **Create a GPO in this domain, and Link it here** → nome `GPO-AVD-Baseline`.
-4. Botão direito na GPO → **Edit** e configure, por e
+4. Botão direito na GPO → **Edit** e configure, por exemplo:
+   - **Idioma/Regional (reforço):** *Computer Configuration → Policies → Administrative Templates → Control Panel → Regional and Language Options* → force o idioma de exibição pt-BR.
+   - **Fuso horário:** *Computer Configuration → Preferences → Control Panel Settings → não há item direto; use* um item de registro/preferência ou a configuração de SO já vinda da imagem. (Em lab, o fuso da imagem já basta.)
+   - **FSLogix (se ainda não configurado no Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
+   - **Segurança/UX AVD:** desabilitar tela de bloqueio por inatividade agressiva, configurar timeouts de sessão (*Administrative Templates → Windows Components → Remote Desktop Services → Remote Desktop Session Host → Session Time Limits*).
+   - **Não armazenar perfis em roaming local** etc.
+5. Para importar os **ADMX do FSLogix** (útil já neste lab): baixe o FSLogix, copie `fslogix.admx`/`.adml` para `C:\Windows\PolicyDefinitions` (ou para o Central Store em `\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions`).
+6. Nos hosts, force a aplicação:
+   ```cmd
+   gpupdate /force
+   ```
+
+> 💡 **Imagem vs GPO — divisão de responsabilidade:** a *imagem* define o ponto de partida (idioma instalado, fuso, apps). A *GPO* garante que ninguém altere e padroniza o comportamento de sessão. Em ambiente Entra-only (Labs 01/02), o equivalente da GPO é o **Intune Settings Catalog**.
+
+---
+
+## Parte F — (Validação) Implantar um host a partir da imagem
+
+Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando a nova imagem:
+1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts → + Add.**
+2. Na seção **Image**, escolha **Shared Image Gallery** → `galavdprdcin001` → `win11-avd-prd-cin` → versão `1.0.0`.
+3. Configure rede `snet-hosts-prd-cin-001` e **Domain join = Active Directory** na OU `AVD` (igual ao Lab 03).
+4. Após provisionar, conecte no **host novo** e rode a **mesma validação do usuário (Validação 1, B.3)** para confirmar que ele **herdou** tudo da imagem:
+   ```powershell
+   Write-Host "===== VALIDACAO DO HOST (herdado da imagem) =====" -ForegroundColor Cyan
+   [pscustomobject]@{
+     "UI Language Override"  = (Get-WinUILanguageOverride)
+     "System Locale"         = (Get-WinSystemLocale).Name
+     "Culture"               = (Get-Culture).Name
+     "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
+     "Time Zone"             = (Get-TimeZone).Id
+   } | Format-List
+   Get-WinUserLanguageList |
+     Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
+     Format-Table -AutoSize
+   ```
+   **Esperado:** `pt-BR` (UI/Locale/Culture) · GeoId `32` · fuso `E. South America Standard Time` · teclado `0416:00010416` (ABNT2).
+
+### ✅ Critérios de sucesso
+- [ ] As **Validações 1 (usuário, B.3) e 2 (perfil Default, B.4) passaram** na VM de build, e **`Reboot pendente = False`** (B.6) **antes** do Sysprep.
+- [ ] Imagem `win11-avd-prd-cin` versão `1.0.0` replicada no gallery `galavdprdcin001`.
+- [ ] O **host novo** (Parte F) retorna no script de validação: **`pt-BR`** (UI/Locale/Culture), **GeoId `32`**, **fuso `E. South America Standard Time`** e **teclado `0416:00010416` (ABNT2)** — **sem intervenção**.
+- [ ] GPO `GPO-AVD-Baseline` vinculada à OU `AVD` e aplicada (`gpresult /r` lista a GPO).
+- [ ] Usuário novo (sem perfil prévio) herda o idioma/teclado/fuso ao primeiro logon.
+
+---
+
+## Erros comuns
+
+| Sintoma | Causa | Correção |
+|---------|-------|----------|
+| **Sysprep falha `0x80310039`** — *"BitLocker is on for the OS volume"* | BitLocker/Criptografia de Dispositivo ligado no `C:` (o Win11 24H2 liga sozinho) | Desligue: `Disable-BitLocker -MountPoint "C:"` e aguarde `manage-bde -status C:` = **Fully Decrypted**. Depois rode o Sysprep. Ver **C.1** |
+| **Sysprep falha `0x80073cf2`** — *"LanguageExperiencePack... not provisioned for all users"* | Idioma instalado **per-user** (Store/`Install-Language`) — não sobrevive ao generalize | Instale via **ISO + DISM** (**B.1**), depois remova o LXP: `Get-AppxPackage -AllUsers -Name Microsoft.LanguageExperiencePackpt-BR \| Remove-AppxPackage -AllUsers` (**C.1**) |
+| **DISM `0x80070003`** no `Add-Package` do `.cab` | O **ISO não está montado na letra** que o `$src` aponta (desmontou após reboot/logoff) | Confirme a letra (`Get-Volume ... CD-ROM`), remonte e ajuste `$src` (**B.1 Passo 2**) |
+| SO continua em **inglês** após instalar o pacote | Faltou definir o **idioma de exibição** — parou no `Set-WinUserLanguageList` | Rode `Set-SystemPreferredUILanguage pt-BR` (**B.1 Passo 4**) e faça **logoff/logon** |
+| `Install-Language`/Central de Idiomas travando 15–30 min | Puxa FODs do **Windows Update** (bloqueado/lento) | Use o **método oficial ISO + DISM** com `/LimitAccess` (**B.1**) |
+| Host novo nasce em inglês | Configurações não copiadas ao perfil Default antes do Sysprep | Refaça B.4 numa nova build e recapture |
+| Sysprep falha (genérico "appx packages") | Outro app provisionado por usuário impede o generalize | Rode a checagem do **C.1 passo 3** e remova com `Remove-AppxPackage -AllUsers` (log em `setuperr.log`) |
+| `WinMain: File operations pending` no log do Sysprep | Operações de arquivo pendentes de tentativa anterior | **Reinicie** a VM antes de rodar o Sysprep de novo |
+| Captura não oferece "Generalized" | VM não foi sysprepada/parada corretamente | Garanta estado **Stopped** após `/generalize /shutdown` |
+| GPO não aplica | Host fora da OU `AVD` | Mova o objeto do host para a OU correta e `gpupdate /force` |
+
+## 🔎 Diagnóstico — onde buscar logs da imagem
+
+| Etapa | Onde olhar | O que procurar |
+|-------|-----------|----------------|
+| Sysprep falhou | `C:\Windows\System32\Sysprep\Panther\setuperr.log` e `setupact.log` | Pacote Appx por-usuário que impede o `/generalize` |
+| Idioma/teclado não aplicou | Na VM: `Get-WinSystemLocale`, `Get-WinUserLanguageList`, `Get-WinHomeLocation` | Valores diferentes de `pt-BR` / ABNT2 / GeoId `32` |
+| Captura sem opção "Generalized" | Estado da VM no portal | VM precisa estar **Stopped (deallocated)** após o Sysprep |
+| GPO não aplica no host | No host: `gpresult /r` e *Event Viewer →* `System` (origem GroupPolicy) | Host fora da OU `AVD` ou sem linha de visão ao DC |
+| Replicação lenta da imagem | **Compute Gallery → Image version → Replication** | Status de replicação por região |
+
+---
+
+## Próximo lab
+➡️ **Lab 07 — Scaling Plan nativo do AVD** para agendar o startup/shutdown desta estrutura, reduzindo custo fora do horário.
