@@ -94,6 +94,7 @@ Conecte na `vmbld-cin-01` como `localadmin`.
 $src = "E:\LanguagesAndOptionalFeatures"
 
 # Impedir que o Windows remova o idioma automaticamente (senão some após a captura)
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\AppxDeploymentClient\" -TaskName "Pre-staged app cleanup"
 Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MUI\" -TaskName "LPRemove"
 Disable-ScheduledTask -TaskPath "\Microsoft\Windows\LanguageComponentsInstaller" -TaskName "Uninstallation"
 reg add "HKLM\SOFTWARE\Policies\Microsoft\Control Panel\International" /v BlockCleanupOfUnusedPreinstalledLangPacks /t REG_DWORD /d 1 /f
@@ -111,8 +112,18 @@ foreach ($c in $caps) {
 $l = Get-WinUserLanguageList
 $l.Add("pt-BR")
 Set-WinUserLanguageList $l -Force
+
+# 4) DEFINIR o pt-BR como idioma de EXIBIÇÃO (passo essencial — sem ele o SO continua em inglês)
+Set-SystemPreferredUILanguage pt-BR   # all-users: tela de login e novos usuários (o que vale para a imagem)
+Set-WinUILanguageOverride -Language pt-BR   # aplica também ao admin de build para conferir agora
 ```
-> O `/LimitAccess` obriga o DISM a usar **apenas o ISO local** — por isso é rápido e não trava esperando o Windows Update. Ao terminar, **saia e entre** (ou reinicie) para a interface aplicar o pt-BR.
+> ⚠️ **O passo 4 é obrigatório.** Instalar o pacote (passos 1–3) **não troca** o idioma de exibição — se você parar no `Set-WinUserLanguageList`, o SO **continua em inglês**. É o `Set-SystemPreferredUILanguage` que fixa o pt-BR como idioma da imagem (para todos os usuários). *(Observação: o script da doc oficial do AVD para no passo 3, pois assume que cada usuário escolhe o próprio idioma; para uma imagem single-language pt-BR, o passo 4 é o que faz valer.)*
+
+**Passo 4 — Aplicar:** o `/LimitAccess` faz o DISM usar **só o ISO local** (rápido, sem Windows Update). Depois de rodar, **saia da sessão** (Iniciar → usuário → **Sair**) e **entre de novo** — ou reinicie. Confirme:
+```powershell
+Get-InstalledLanguage -Language pt-BR   # deve listar pt-BR + LpCab + recursos
+Get-SystemPreferredUILanguage           # esperado: pt-BR
+```
 
 ### B.2 — Configurar fuso horário
 ```powershell
@@ -282,19 +293,4 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
    - **Idioma/Regional (reforço):** *Computer Configuration → Policies → Administrative Templates → Control Panel → Regional and Language Options* → force o idioma de exibição pt-BR.
    - **Fuso horário:** *Computer Configuration → Preferences → Control Panel Settings → não há item direto; use* um item de registro/preferência ou a configuração de SO já vinda da imagem. (Em lab, o fuso da imagem já basta.)
    - **FSLogix (se ainda não configurado no Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
-   - **Segurança/UX AVD:** desabilitar tela de bloqueio por inatividade agressiva, configurar timeouts de sessão (*Administrative Templates → Windows Components → Remote Desktop Services → Remote Desktop Session Host → Session Time Limits*).
-   - **Não armazenar perfis em roaming local** etc.
-5. Para importar os **ADMX do FSLogix** (útil já neste lab): baixe o FSLogix, copie `fslogix.admx`/`.adml` para `C:\Windows\PolicyDefinitions` (ou para o Central Store em `\\avdlab.local\SYSVOL\avdlab.local\Policies\PolicyDefinitions`).
-6. Nos hosts, force a aplicação:
-   ```cmd
-   gpupdate /force
-   ```
-
-> 💡 **Imagem vs GPO — divisão de responsabilidade:** a *imagem* define o ponto de partida (idioma instalado, fuso, apps). A *GPO* garante que ninguém altere e padroniza o comportamento de sessão. Em ambiente Entra-only (Labs 01/02), o equivalente da GPO é o **Intune Settings Catalog**.
-
----
-
-## Parte F — (Validação) Implantar um host a partir da imagem
-
-Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando a nova imagem:
-1. **Host pools → `vdp
+   - **Segurança/
