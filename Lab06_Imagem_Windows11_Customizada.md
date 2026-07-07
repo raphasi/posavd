@@ -73,18 +73,39 @@ flowchart LR
 Conecte na `vmbld-cin-01` como `localadmin`.
 
 ### B.1 — Instalar o pacote de idioma Português (Brasil)
-Pela interface: **Configurações → Hora e Idioma → Idioma e região → Adicionar idioma → Português (Brasil)** → marque os recursos de idioma (pacote de idioma, reconhecimento de fala opcional) → instalar.
 
-Ou via PowerShell (Admin), mais confiável para imagem:
+> ⏳ **Aviso — este passo pode demorar MUITO.** A instalação do idioma baixa o **pacote + recursos (FODs)** e pode levar de **10 a 30+ minutos**, às vezes com um reboot exibindo *"Updates are underway. Please keep your computer on."*. É **bem mais rápido numa VM série D** (`Standard_D2s_v5`) do que numa **série B** (burstable). **Não interrompa** no meio.
+
+**Opção 1 (principal) — pela Central de Idiomas do Windows (Configurações):**
+1. **Configurações → Hora e Idioma → Idioma e região → + Adicionar um idioma → Português (Brasil)** → **Avançar**.
+2. Marque **Pacote de idioma** e **Definir como meu idioma de exibição do Windows** (fala/handwriting são opcionais) → **Instalar**.
+3. Acompanhe a **barra de progresso**. Ao terminar, **saia e entre** (ou reinicie) para a interface aplicar o pt-BR.
+
+**Opção 2 — PowerShell (Admin):**
 ```powershell
 Install-Language pt-BR
 Set-SystemPreferredUILanguage pt-BR
 ```
+> ⚠️ O `Install-Language` **puxa os FODs do Windows Update** e pode **travar/demorar muito** se o WU estiver bloqueado. Se ficar preso, veja a nota de FOD abaixo.
+
+**Opção 3 (leve, se as anteriores travarem) — LXP pela Microsoft Store:**
+Abra a **Microsoft Store** → busque **"Pacote de Experiência Local em Português (Brasil)"** → **Instalar** → depois `Set-WinUILanguageOverride -Language pt-BR`. Traz **interface + teclado** (sem fala/OCR — suficiente para o AVD).
+
+> 🔧 **`Install-Language` travando mesmo com internet?** É bloqueio de FOD por política. Libere e tente de novo:
+> ```powershell
+> New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Servicing" -Force | Out-Null
+> New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Servicing" -Name "RepairContentServerSource" -Value 2 -PropertyType DWORD -Force
+> ```
 
 ### B.2 — Configurar fuso horário
 ```powershell
-Set-TimeZone -Id "E. South America Standard Time"   # Brasília
+# Desliga o "definir fuso automaticamente" (senão a VM pode voltar para UTC):
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\tzautoupdate" -Name Start -Value 4
+
+Set-TimeZone -Id "E. South America Standard Time"   # Brasília (UTC-03:00)
+Get-TimeZone                                         # confirme: (UTC-03:00) Brasília
 ```
+> 💡 VMs do Azure nascem em **UTC**. Se depois de configurar o fuso ele **voltar a UTC**, é porque o **"definir fuso automaticamente"** está ligado — a primeira linha acima o desliga.
 
 ### B.3 — Configurar teclado (ABNT2), locale e formato regional
 ```powershell
@@ -126,6 +147,41 @@ control.exe "intl.cpl,,/f:`"C:\Temp\pt-BR.xml`""
 
 ### B.5 — (Opcional) Personalizações adicionais na imagem
 Instale agentes/ferramentas corporativas, remova apps indesejados, aplique otimizações do **Virtual Desktop Optimization Tool (VDOT)** se desejar. Mantenha a imagem enxuta.
+
+### B.6 — Validar TUDO antes de capturar a imagem (obrigatório)
+Antes do Sysprep, rode este script (PowerShell como Admin) e **confira cada valor** — assim você não descobre um idioma/teclado/fuso errado só depois de implantar os hosts:
+```powershell
+Write-Host "===== VALIDACAO DA IMAGEM (pt-BR) =====" -ForegroundColor Cyan
+[pscustomobject]@{
+  "UI Language Override"  = (Get-WinUILanguageOverride)
+  "System Locale"         = (Get-WinSystemLocale).Name
+  "Culture"               = (Get-Culture).Name
+  "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
+  "Time Zone"             = (Get-TimeZone).Id
+} | Format-List
+
+Write-Host "Idiomas e teclados:" -ForegroundColor Cyan
+Get-WinUserLanguageList |
+  Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
+  Format-Table -AutoSize
+
+# Sysprep FALHA se houver reboot pendente:
+$pending = Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"
+Write-Host ("Reboot pendente: {0}  (precisa ser False para o Sysprep)" -f $pending) -ForegroundColor Yellow
+```
+
+**Valores esperados:**
+| Item | Esperado |
+|------|----------|
+| UI Language Override | `pt-BR` |
+| System Locale | `pt-BR` |
+| Culture | `pt-BR` |
+| Home Location (GeoId) | `32` (Brasil) |
+| Time Zone | `E. South America Standard Time` |
+| Teclado (InputMethodTips) | `0416:00010416` (ABNT2) |
+| **Reboot pendente** | **`False`** |
+
+> ⛔ **Só prossiga para o Sysprep se todos baterem e `Reboot pendente = False`.** Se algum estiver errado, reaplique o passo correspondente (B.1–B.4). Se houver reboot pendente, **reinicie** até ficar `False`.
 
 ---
 
