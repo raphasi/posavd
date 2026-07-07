@@ -308,33 +308,59 @@ do { Start-Sleep 15; $v = Get-BitLockerVolume -MountPoint "C:"
 >
 > 💡 Para **evitar** o BitLocker automático em builds futuras, crie **antes** de tudo a chave: `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker` → DWORD `PreventDeviceEncryption = 1`.
 
-#### Passo 2 — Remover o resíduo de idioma (LXP) e conferir os apps
+#### Passo 2 — Remover apps "per-user" que quebram o Sysprep
 
-**Só execute depois** que o Passo 1 imprimiu "OK". O Sysprep falha com **`0x80073cf2`** se houver app instalado **por usuário** sem provisionamento all-users — o caso típico é o `LanguageExperiencePack`:
+**Só execute depois** que o Passo 1 imprimiu "OK".
 
+> **Por que isto é necessário (conceito):** o Sysprep `/generalize` gera uma imagem **genérica**, para ser usada por **qualquer usuário** nos hosts. Por isso ele exige que todo pacote de aplicativo (Appx/MSIX) esteja **provisionado para TODOS os usuários** (*all-users*). Se um app foi instalado **só para o usuário de build** (*per-user*) — típico de apps da **Microsoft Store/MSIX** — o Sysprep aborta com **`0x80073cf2`**: *"installed for a user, but not provisioned for all users"*. Regra de ouro da golden image: **instale por máquina (MSI/EXE)** e remova qualquer resíduo per-user antes de generalizar.
+
+**2a) Reinicie AGORA (se houver reboot pendente) — antes das remoções:**
 ```powershell
-# Remove o LXP per-user (o pt-BR PERMANECE, pois foi instalado via DISM no B.1)
+Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"   # precisa ser False
+```
+> ⚠️ O reboot tem que acontecer **aqui**, não depois. Alguns MSIX (ex.: o menu de contexto do Notepad++) **se re-registram no logon** — se você reiniciar *depois* de removê-los, eles voltam.
+
+**2b) Remover o pacote de idioma da Store (LXP)** — com o B.1 (DISM), o pt-BR permanece:
+```powershell
 Get-AppxPackage -AllUsers -Name Microsoft.LanguageExperiencePackpt-BR | Remove-AppxPackage -AllUsers
 ```
 
-(Opcional) Diagnóstico — listar apps registrados por usuário sem provisionamento all-users:
+**2c) Remover o MSIX de menu de contexto do Notepad++** — o instalador clássico do Notepad++ 8.x registra um MSIX ("Editar com Notepad++") que **ressuscita a cada logon**:
+```powershell
+Get-AppxPackage -Name "*NotepadPlusPlus*" | Remove-AppxPackage
+```
+
+**2d) (Diagnóstico) Listar apps registrados por usuário sem provisionamento all-users:**
 ```powershell
 $prov = (Get-AppxProvisionedPackage -Online).DisplayName
 Get-AppxPackage | Where-Object { -not $_.NonRemovable -and $prov -notcontains $_.Name } | Select-Object Name
 ```
-> ⚠️ **NÃO remova o que aparecer aqui sem antes olhar o que é.** A lista quase sempre traz apenas **frameworks/runtimes** — `Microsoft.VCLibs.*`, `Microsoft.NET.Native.*`, `Microsoft.UI.Xaml.*`, `Microsoft.WindowsAppRuntime.*`. Esses são **dependências**: **não remova** (quebra Store, Edge e outros apps). Remova **somente apps reais** deixados por usuário — ex.: `LanguageExperiencePack` (idioma da Store) ou `NotepadPlusPlus`/outro app instalado pela **Microsoft Store** por engano (use sempre o instalador clássico do B.5). Frameworks passam no Sysprep; se algum **realmente** bloquear, o `setuperr.log` dirá o nome exato — e a correção é **provisioná-lo para todos** (`Add-AppxProvisionedPackage`), **não** removê-lo.
+> ⚠️ **NÃO remova o que aparecer aqui sem antes olhar o que é.** A lista quase sempre traz só **frameworks/runtimes** — `Microsoft.VCLibs.*`, `Microsoft.NET.Native.*`, `Microsoft.UI.Xaml.*`, `Microsoft.WindowsAppRuntime.*`. Esses são **dependências**: **não remova** (quebra Store, Edge e outros apps). Remova **somente apps reais** deixados por usuário.
+
+> ⛔ **Depois das remoções (2b/2c), NÃO reinicie nem faça logoff.** Vá **direto** para o Sysprep (C.2), na **mesma sessão** — assim os MSIX que ressuscitam no logon não voltam (o Sysprep desliga a VM, sem novo logon). O Notepad++ clássico (`Program Files`) permanece na imagem; nos hosts, o menu de contexto se registra por usuário normalmente.
+
+---
 
 ### C.2 — Executar o Sysprep
 
-1. Reinicie a VM (limpa qualquer *"File operations pending"* residual) e confirme `Reboot pendente = False` (B.6).
-2. Na VM, **PowerShell/CMD como Admin**:
+> Pré-requisitos: Passo 1 (BitLocker `FullyDecrypted`) e Passo 2 concluídos, **sem reboot após as remoções**.
+
+1. Na VM, **PowerShell/CMD como Admin**, rode **imediatamente** após o Passo 2:
    ```cmd
    C:\Windows\System32\Sysprep\sysprep.exe /oobe /generalize /shutdown /mode:vm
    ```
-3. Aguarde a VM **parar** (Stopped) — não apenas reiniciar. Confirme no portal o estado **Stopped**.
-> 🔎 Se falhar, o erro exato está em `C:\Windows\System32\Sysprep\Panther\setuperr.log` (só os erros — bem mais fácil que o `setupact.log`).
+2. Aguarde a VM **parar** (Stopped) — não apenas reiniciar. Confirme no portal o estado **Stopped**.
 
----
+**Se o Sysprep falhar — procedimento geral (vale para qualquer pacote):**
+1. Abra o log **só de erros**: `C:\Windows\System32\Sysprep\Panther\setuperr.log`
+2. Ache a linha com `0x80073cf2` — ela traz o **nome exato** do pacote:
+   `Package <Nome>_<versão>... was installed for a user, but not provisioned for all users.`
+3. Copie essa linha e peça a uma **IA de sua preferência** (Claude, Copilot, ChatGPT…) para **gerar o script de correção** daquele pacote específico. A correção quase sempre é uma destas duas:
+   - **Remover** (app da Store/per-user descartável): `Get-AppxPackage -AllUsers -Name "*<Nome>*" | Remove-AppxPackage -AllUsers`
+   - **Provisionar para todos** (app que você quer MANTER): `Add-AppxProvisionedPackage -Online -PackagePath "<caminho-do-AppxManifest.xml>" -SkipLicense`
+4. Aplique, confirme que sumiu no diagnóstico (2d) e rode o Sysprep de novo (**mesma sessão, sem reboot**).
+
+> 🔎 `setuperr.log` = só os erros (fácil de ler). `setupact.log` (mesma pasta) = log completo — use se precisar de mais contexto. Os erros `BCD ... c000000d` que aparecem nesses logs são **inofensivos** (firmware Gen2) e podem ser ignorados.
 
 ## Parte D — Criar o Azure Compute Gallery e capturar a imagem
 
