@@ -72,30 +72,47 @@ flowchart LR
 
 Conecte na `vmbld-cin-01` como `localadmin`.
 
-### B.1 — Instalar o pacote de idioma Português (Brasil)
+### B.1 — Instalar o pacote de idioma Português (Brasil) — método oficial (ISO + DISM)
 
-> ⏳ **Aviso — este passo pode demorar MUITO.** A instalação do idioma baixa o **pacote + recursos (FODs)** e pode levar de **10 a 30+ minutos**, às vezes com um reboot exibindo *"Updates are underway. Please keep your computer on."*. É **bem mais rápido numa VM série D** (`Standard_D2s_v5`) do que numa **série B** (burstable). **Não interrompa** no meio.
+> ✅ **Este é o método recomendado pela Microsoft para imagens do AVD** ([doc oficial](https://learn.microsoft.com/en-us/azure/virtual-desktop/windows-11-language-packs)). O idioma é instalado **offline, a partir de um ISO** — provisionado para **todos os usuários** (all-users), que é o único estado que **sobrevive ao Sysprep**.
+>
+> ❌ **NÃO use** a Central de Idiomas (Configurações), `Install-Language`, nem o "Pacote de Experiência Local" da **Microsoft Store**: esses instalam **por usuário** (per-user), puxam FODs do **Windows Update** (lentidão de 15–30 min) e **quebram o Sysprep** com o erro `0x80073cf2` (ver tabela de erros).
 
-**Opção 1 (principal) — pela Central de Idiomas do Windows (Configurações):**
-1. **Configurações → Hora e Idioma → Idioma e região → + Adicionar um idioma → Português (Brasil)** → **Avançar**.
-2. Marque **Pacote de idioma** e **Definir como meu idioma de exibição do Windows** (fala/handwriting são opcionais) → **Instalar**.
-3. Acompanhe a **barra de progresso**. Ao terminar, **saia e entre** (ou reinicie) para a interface aplicar o pt-BR.
+**Passo 1 — Baixar o ISO de idiomas** (na VM `vmbld-cin-01`; confira a versão com `Win+R` → `winver`):
 
-**Opção 2 — PowerShell (Admin):**
+*Languages and Optional Features ISO:*
+- [Windows 11, version **22H2 / 23H2** (build 22621)](https://software-static.download.prss.microsoft.com/dbazure/988969d5-f34g-4e03-ac9d-1f9786c66749/22621.1.220506-1250.ni_release_amd64fre_CLIENT_LOF_PACKAGES_OEM.iso)
+- [Windows 11, version **24H2 / 25H2** (build 26100) ← usar este](https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.1.240331-1435.ge_release_amd64fre_CLIENT_LOF_PACKAGES_OEM.iso)
+
+> 💡 O **Inbox Apps ISO** é opcional (só atualiza apps de caixa de entrada) — não é necessário para o idioma. Se precisar: [22H2/23H2](https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/22621.2501.231009-1937.ni_release_svc_prod3_amd64fre_InboxApps.iso) · [24H2/25H2](https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/26100.6584.250904-1728.ge_release_svc_prod1_amd64fre_InboxApps.iso).
+> Se o download for bloqueado, use o **Edge** (não o IE).
+
+**Passo 2 — Montar o ISO:** botão direito no arquivo → **Montar**. Ele recebe uma letra (ex.: `E:`). Os `.cab` de idioma ficam em `E:\LanguagesAndOptionalFeatures\`.
+
+**Passo 3 — Instalar o pt-BR** (PowerShell **como Admin**; ajuste a letra se não for `E:`):
 ```powershell
-Install-Language pt-BR
-Set-SystemPreferredUILanguage pt-BR
+$src = "E:\LanguagesAndOptionalFeatures"
+
+# Impedir que o Windows remova o idioma automaticamente (senão some após a captura)
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MUI\" -TaskName "LPRemove"
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\LanguageComponentsInstaller" -TaskName "Uninstallation"
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Control Panel\International" /v BlockCleanupOfUnusedPreinstalledLangPacks /t REG_DWORD /d 1 /f
+
+# 1) Pacote de idioma principal (interface pt-BR) — all-users
+Dism /Online /Add-Package /PackagePath:"$src\Microsoft-Windows-Client-Language-Pack_x64_pt-br.cab"
+
+# 2) Recursos do idioma (all-users, SOMENTE da fonte local — sem Windows Update)
+$caps = "Language.Basic","Language.Handwriting","Language.OCR","Language.Speech","Language.TextToSpeech"
+foreach ($c in $caps) {
+  Dism /Online /Add-Capability /CapabilityName:"$c~~~pt-br~0.0.1.0" /Source:$src /LimitAccess
+}
+
+# 3) Adicionar pt-BR à lista de idiomas
+$l = Get-WinUserLanguageList
+$l.Add("pt-BR")
+Set-WinUserLanguageList $l -Force
 ```
-> ⚠️ O `Install-Language` **puxa os FODs do Windows Update** e pode **travar/demorar muito** se o WU estiver bloqueado. Se ficar preso, veja a nota de FOD abaixo.
-
-**Opção 3 (leve, se as anteriores travarem) — LXP pela Microsoft Store:**
-Abra a **Microsoft Store** → busque **"Pacote de Experiência Local em Português (Brasil)"** → **Instalar** → depois `Set-WinUILanguageOverride -Language pt-BR`. Traz **interface + teclado** (sem fala/OCR — suficiente para o AVD).
-
-> 🔧 **`Install-Language` travando mesmo com internet?** É bloqueio de FOD por política. Libere e tente de novo:
-> ```powershell
-> New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Servicing" -Force | Out-Null
-> New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Servicing" -Name "RepairContentServerSource" -Value 2 -PropertyType DWORD -Force
-> ```
+> O `/LimitAccess` obriga o DISM a usar **apenas o ISO local** — por isso é rápido e não trava esperando o Windows Update. Ao terminar, **saia e entre** (ou reinicie) para a interface aplicar o pt-BR.
 
 ### B.2 — Configurar fuso horário
 ```powershell
@@ -187,6 +204,8 @@ $pending = Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component 
 Write-Host ("Reboot pendente: {0}  (precisa ser False para o Sysprep)" -f $pending) -ForegroundColor Yellow
 ```
 > ⛔ **Só prossiga para o Sysprep se:** as Validações **1 (usuário, B.3)** e **2 (Default, B.4)** passaram — tudo em **pt-BR / ABNT2 / GeoId 32 / fuso Brasília** — **e** `Reboot pendente = False`. Se algum valor divergir, reaplique B.1–B.4; se houver reboot pendente, **reinicie** até ficar `False`.
+>
+> ➡️ Em seguida, execute as **limpezas obrigatórias da Parte C.1** (desligar BitLocker + remover o LXP) — sem elas o Sysprep falha com `0x80310039` / `0x80073cf2`.
 
 ---
 
@@ -194,11 +213,37 @@ Write-Host ("Reboot pendente: {0}  (precisa ser False para o Sysprep)" -f $pendi
 
 > **Atenção:** após o Sysprep + captura, esta VM fica **inutilizável**. Não a use como host.
 
-1. Na VM, abra **PowerShell como Admin**:
+### C.1 — Limpeza obrigatória antes do Sysprep
+
+O Sysprep valida, nesta ordem, o **BitLocker** e o **provisionamento de Appx**. Dois itens quebram a generalização se não forem tratados — execute **como Admin**:
+
+```powershell
+# 1) BitLocker — o Sysprep FALHA (0x80310039) se o BitLocker estiver ligado no C:.
+#    O Windows 11 24H2 costuma ligar a Criptografia de Dispositivo automaticamente.
+manage-bde -status C:                 # veja o estado atual
+Disable-BitLocker -MountPoint "C:"    # desliga/descriptografa (se estiver ligado)
+#    Aguarde concluir: repita 'manage-bde -status C:' até "Fully Decrypted" / "Protection Off".
+
+# 2) LanguageExperiencePack (LXP) — remove QUALQUER resíduo per-user que quebre o Sysprep (0x80073cf2).
+#    Como o idioma foi instalado via DISM (B.1), o pt-BR PERMANECE na imagem.
+Get-AppxPackage -AllUsers -Name Microsoft.LanguageExperiencePackpt-BR | Remove-AppxPackage -AllUsers
+
+# 3) Conferir que não sobrou NENHUM app registrado por usuário sem provisionamento all-users:
+$prov = (Get-AppxProvisionedPackage -Online).DisplayName
+Get-AppxPackage | Where-Object { -not $_.NonRemovable -and $prov -notcontains $_.Name } | Select-Object Name
+#    Se listar algo, remova com: Get-AppxPackage -AllUsers -Name <Nome> | Remove-AppxPackage -AllUsers
+```
+> 💡 Para **evitar** o BitLocker automático em builds futuras, crie **antes** de tudo a chave: `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker` → DWORD `PreventDeviceEncryption = 1`.
+
+### C.2 — Executar o Sysprep
+
+1. Reinicie a VM (limpa qualquer *"File operations pending"* residual) e confirme `Reboot pendente = False` (B.6).
+2. Na VM, **PowerShell/CMD como Admin**:
    ```cmd
    C:\Windows\System32\Sysprep\sysprep.exe /oobe /generalize /shutdown /mode:vm
    ```
-2. Aguarde a VM **parar** (Stopped) — não apenas reiniciar. Confirme no portal o estado **Stopped**.
+3. Aguarde a VM **parar** (Stopped) — não apenas reiniciar. Confirme no portal o estado **Stopped**.
+> 🔎 Se falhar, o erro exato está em `C:\Windows\System32\Sysprep\Panther\setuperr.log` (só os erros — bem mais fácil que o `setupact.log`).
 
 ---
 
@@ -252,56 +297,4 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
 ## Parte F — (Validação) Implantar um host a partir da imagem
 
 Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando a nova imagem:
-1. **Host pools → `vdpool-avd-prd-cin-002` → Session hosts → + Add.**
-2. Na seção **Image**, escolha **Shared Image Gallery** → `galavdprdcin001` → `win11-avd-prd-cin` → versão `1.0.0`.
-3. Configure rede `snet-hosts-prd-cin-001` e **Domain join = Active Directory** na OU `AVD` (igual ao Lab 03).
-4. Após provisionar, conecte no **host novo** e rode a **mesma validação do usuário (Validação 1, B.3)** para confirmar que ele **herdou** tudo da imagem:
-   ```powershell
-   Write-Host "===== VALIDACAO DO HOST (herdado da imagem) =====" -ForegroundColor Cyan
-   [pscustomobject]@{
-     "UI Language Override"  = (Get-WinUILanguageOverride)
-     "System Locale"         = (Get-WinSystemLocale).Name
-     "Culture"               = (Get-Culture).Name
-     "Home Location (GeoId)" = (Get-WinHomeLocation).GeoId
-     "Time Zone"             = (Get-TimeZone).Id
-   } | Format-List
-   Get-WinUserLanguageList |
-     Select-Object LanguageTag, @{n='Teclados';e={$_.InputMethodTips -join ', '}} |
-     Format-Table -AutoSize
-   ```
-   **Esperado:** `pt-BR` (UI/Locale/Culture) · GeoId `32` · fuso `E. South America Standard Time` · teclado `0416:00010416` (ABNT2).
-
-### ✅ Critérios de sucesso
-- [ ] As **Validações 1 (usuário, B.3) e 2 (perfil Default, B.4) passaram** na VM de build, e **`Reboot pendente = False`** (B.6) **antes** do Sysprep.
-- [ ] Imagem `win11-avd-prd-cin` versão `1.0.0` replicada no gallery `galavdprdcin001`.
-- [ ] O **host novo** (Parte F) retorna no script de validação: **`pt-BR`** (UI/Locale/Culture), **GeoId `32`**, **fuso `E. South America Standard Time`** e **teclado `0416:00010416` (ABNT2)** — **sem intervenção**.
-- [ ] GPO `GPO-AVD-Baseline` vinculada à OU `AVD` e aplicada (`gpresult /r` lista a GPO).
-- [ ] Usuário novo (sem perfil prévio) herda o idioma/teclado/fuso ao primeiro logon.
-
----
-
-## Erros comuns
-
-| Sintoma | Causa | Correção |
-|---------|-------|----------|
-| Host novo nasce em inglês | Configurações não copiadas ao perfil Default antes do Sysprep | Refaça B.4 numa nova build e recapture |
-| Sysprep falha ("appx packages") | App provisionado por usuário impede generalize | Remova o app problemático (log em `C:\Windows\System32\Sysprep\Panther\setuperr.log`) |
-| Captura não oferece "Generalized" | VM não foi sysprepada/parada corretamente | Garanta estado **Stopped** após `/generalize /shutdown` |
-| GPO não aplica | Host fora da OU `AVD` | Mova o objeto do host para a OU correta e `gpupdate /force` |
-
----
-
-## 🔎 Diagnóstico — onde buscar logs da imagem
-
-| Etapa | Onde olhar | O que procurar |
-|-------|-----------|----------------|
-| Sysprep falhou | `C:\Windows\System32\Sysprep\Panther\setuperr.log` e `setupact.log` | Pacote Appx por-usuário que impede o `/generalize` |
-| Idioma/teclado não aplicou | Na VM: `Get-WinSystemLocale`, `Get-WinUserLanguageList`, `Get-WinHomeLocation` | Valores diferentes de `pt-BR` / ABNT2 / GeoId `32` |
-| Captura sem opção "Generalized" | Estado da VM no portal | VM precisa estar **Stopped (deallocated)** após o Sysprep |
-| GPO não aplica no host | No host: `gpresult /r` e *Event Viewer →* `System` (origem GroupPolicy) | Host fora da OU `AVD` ou sem linha de visão ao DC |
-| Replicação lenta da imagem | **Compute Gallery → Image version → Replication** | Status de replicação por região |
-
----
-
-## Próximo lab
-➡️ **Lab 07 — Scaling Plan nativo do AVD** para agendar o startup/shutdown desta estrutura, reduzindo custo fora do horário.
+1. **Host pools → `vdp
