@@ -79,7 +79,7 @@ VNET="vnet-avd-prd-cin-001"
 SUBNET="snet-hosts-prd-cin-001"
 VM="vmbld-cin-01"
 SIZE="Standard_D2s_v5"               # série D (rápido p/ idioma). D4s_v5 = build ainda mais veloz.
-ADMIN="localadmin"
+ADMIN="suporte"
 SKU="win11-25h2-avd"                 # multi-session sem M365 (troque p/ win11-24h2-avd se preferir)
 IMG="MicrosoftWindowsDesktop:windows-11:${SKU}:latest"
 
