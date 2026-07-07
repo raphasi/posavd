@@ -235,25 +235,44 @@ Write-Host ("Reboot pendente: {0}  (precisa ser False para o Sysprep)" -f $pendi
 
 ### C.1 — Limpeza obrigatória antes do Sysprep
 
-O Sysprep valida, nesta ordem, o **BitLocker** e o **provisionamento de Appx**. Dois itens quebram a generalização se não forem tratados — execute **como Admin**:
+O Sysprep valida, **nesta ordem**, o **BitLocker** e depois o **provisionamento de Appx**. Faça os dois passos **em sequência** — conclua o Passo 1 (descriptografia) **antes** de olhar o Passo 2.
+
+#### Passo 1 — Desligar o BitLocker e AGUARDAR a descriptografia
+
+O Sysprep falha com **`0x80310039`** se o BitLocker estiver ligado no `C:` (o Win11 24H2/25H2 liga a Criptografia de Dispositivo sozinho). Execute **como Admin**:
 
 ```powershell
-# 1) BitLocker — o Sysprep FALHA (0x80310039) se o BitLocker estiver ligado no C:.
-#    O Windows 11 24H2 costuma ligar a Criptografia de Dispositivo automaticamente.
 manage-bde -status C:                 # veja o estado atual
-Disable-BitLocker -MountPoint "C:"    # desliga/descriptografa (se estiver ligado)
-#    Aguarde concluir: repita 'manage-bde -status C:' até "Fully Decrypted" / "Protection Off".
+Disable-BitLocker -MountPoint "C:"    # INICIA a descriptografia (se estiver ligado)
+```
 
-# 2) LanguageExperiencePack (LXP) — remove QUALQUER resíduo per-user que quebre o Sysprep (0x80073cf2).
-#    Como o idioma foi instalado via DISM (B.1), o pt-BR PERMANECE na imagem.
+O comando só **inicia** o processo — não espera. **"Proteção Desativada" NÃO basta**: o volume precisa ficar **100% descriptografado**. Rode o loop abaixo e só siga quando ele imprimir "OK":
+
+```powershell
+do { Start-Sleep 15; $v = Get-BitLockerVolume -MountPoint "C:"
+     "{0} - {1}% criptografado" -f $v.VolumeStatus, $v.EncryptionPercentage
+} while ($v.VolumeStatus -ne "FullyDecrypted")
+"OK - volume totalmente descriptografado; pode ir para o Passo 2."
+```
+> ⏳ A descriptografia pode levar vários minutos. Enquanto o `VolumeStatus` for `DecryptionInProgress`, **não** prossiga.
+>
+> 💡 Para **evitar** o BitLocker automático em builds futuras, crie **antes** de tudo a chave: `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker` → DWORD `PreventDeviceEncryption = 1`.
+
+#### Passo 2 — Remover o resíduo de idioma (LXP) e conferir os apps
+
+**Só execute depois** que o Passo 1 imprimiu "OK". O Sysprep falha com **`0x80073cf2`** se houver app instalado **por usuário** sem provisionamento all-users — o caso típico é o `LanguageExperiencePack`:
+
+```powershell
+# Remove o LXP per-user (o pt-BR PERMANECE, pois foi instalado via DISM no B.1)
 Get-AppxPackage -AllUsers -Name Microsoft.LanguageExperiencePackpt-BR | Remove-AppxPackage -AllUsers
+```
 
-# 3) Conferir que não sobrou NENHUM app registrado por usuário sem provisionamento all-users:
+(Opcional) Diagnóstico — listar apps registrados por usuário sem provisionamento all-users:
+```powershell
 $prov = (Get-AppxProvisionedPackage -Online).DisplayName
 Get-AppxPackage | Where-Object { -not $_.NonRemovable -and $prov -notcontains $_.Name } | Select-Object Name
-#    Se listar algo, remova com: Get-AppxPackage -AllUsers -Name <Nome> | Remove-AppxPackage -AllUsers
 ```
-> 💡 Para **evitar** o BitLocker automático em builds futuras, crie **antes** de tudo a chave: `HKLM\SYSTEM\CurrentControlSet\Control\BitLocker` → DWORD `PreventDeviceEncryption = 1`.
+> ⚠️ **NÃO remova o que aparecer aqui sem antes olhar o que é.** A lista quase sempre traz apenas **frameworks/runtimes** — `Microsoft.VCLibs.*`, `Microsoft.NET.Native.*`, `Microsoft.UI.Xaml.*`, `Microsoft.WindowsAppRuntime.*`. Esses são **dependências**: **não remova** (quebra Store, Edge e outros apps). Remova **somente apps reais** deixados por usuário (como o `LanguageExperiencePack`). Frameworks passam no Sysprep; se algum **realmente** bloquear, o `setuperr.log` dirá o nome exato — e a correção é **provisioná-lo para todos** (`Add-AppxProvisionedPackage`), **não** removê-lo.
 
 ### C.2 — Executar o Sysprep
 
