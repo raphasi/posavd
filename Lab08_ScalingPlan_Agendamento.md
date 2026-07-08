@@ -54,6 +54,19 @@ Há **dois tipos** de scaling plan, e o comportamento difere:
 
 > Como os labs usam host pools **Pooled** (`vdpool-avd-prd-cin-002`, `vdpool-avd-prd-cin-001`), este lab foca no **Scaling Plan Pooled**. A Parte F traz as diferenças para Personal.
 
+### 🎓 Entendendo na prática (material de aula)
+
+**As 4 fases do Autoscale** — o que acontece com hosts, usuários e custo em cada etapa (simulação: 3 hosts, até 100 usuários) e o **algoritmo de balanceamento por fase** (Breadth-first no pico, Depth-first nas demais):
+
+![Scaling Plan — as 4 fases do Autoscale](Scaling_Plan_1_Fases_Autoscale.svg)
+
+**Quando cada host liga/desliga por nº de usuários** — os pontos de virada do *scale-out* / *scale-in* (com 40 sessões/host e Capacity threshold 75%):
+
+![Autoscale — gatilhos por número de usuários](Scaling_Plan_2_Gatilhos_Autoscale.svg)
+
+> 💡 **Fórmula do gatilho:** `(hosts ligados) × (sessões por host) × (Capacity threshold)`. Com 40 sessões/host e 75%: a **2ª** máquina liga no **31.º** usuário e a **3ª** no **61.º**; descendo, desliga quando as sessões cabem nos hosts restantes (**≤60 → 2 hosts, ≤30 → 1 host**), e a última é desalocada no **off-peak** quando esvazia. Mude o **Max session limit** ou o **threshold** e os números mudam.
+
+
 ---
 
 ## Parte A — Conceder a permissão de Autoscale ao service principal do AVD (obrigatório)

@@ -1,0 +1,57 @@
+<svg width="100%" viewBox="0 0 680 378" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>AVD Autoscale — em qual quantidade de usuarios liga/desliga cada host</title>
+<desc>Regua de 0 a 120 usuarios: 1 host ate 30, 2 hosts de 31 a 60, 3 hosts a partir de 61; e o caminho inverso ao desligar.</desc>
+<rect x="0" y="0" width="680" height="378" fill="#FFFFFF"/>
+
+<text x="40" y="30" font-size="19" font-weight="500" fill="#1F2430">Quando cada host liga/desliga — por nº de usuários</text>
+<text x="40" y="52" font-size="12.5" fill="#5B6470">3 hosts · 40 sessões/host · Capacity threshold 75% → ponto de virada a cada +30 sessões</text>
+
+<!-- dividers -->
+<line x1="205" y1="116" x2="205" y2="214" stroke="#98A0AC" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
+<line x1="340" y1="116" x2="340" y2="214" stroke="#98A0AC" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
+
+<!-- SCALE-OUT (above) -->
+<text x="40" y="84" font-size="11.5" font-weight="500" fill="#15803D">SCALE-OUT — usuários subindo ▶ LIGA host</text>
+<rect x="141" y="92" width="128" height="22" rx="6" fill="#E4F5EA" stroke="#22A06B"/>
+<text x="205" y="107" text-anchor="middle" font-size="11" fill="#14532D">▲ liga a 2ª · 31 users</text>
+<rect x="276" y="92" width="128" height="22" rx="6" fill="#E4F5EA" stroke="#22A06B"/>
+<text x="340" y="107" text-anchor="middle" font-size="11" fill="#14532D">▲ liga a 3ª · 61 users</text>
+
+<!-- Ruler bands -->
+<rect x="70" y="130" width="135" height="56" fill="#E4F5EA"/>
+<rect x="205" y="130" width="135" height="56" fill="#CFEAD6"/>
+<rect x="340" y="130" width="270" height="56" fill="#B9E1C2"/>
+<rect x="70" y="130" width="540" height="56" fill="none" stroke="#D7DCE3"/>
+
+<rect x="129" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="134" y="147" width="6" height="2" fill="#22A06B"/>
+<text x="137" y="172" text-anchor="middle" font-size="12" font-weight="500" fill="#14532D">1 host</text>
+<rect x="255" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="260" y="147" width="6" height="2" fill="#22A06B"/>
+<rect x="281" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="286" y="147" width="6" height="2" fill="#22A06B"/>
+<text x="276" y="172" text-anchor="middle" font-size="12" font-weight="500" fill="#14532D">2 hosts</text>
+<rect x="450" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="455" y="147" width="6" height="2" fill="#22A06B"/>
+<rect x="470" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="475" y="147" width="6" height="2" fill="#22A06B"/>
+<rect x="490" y="136" width="16" height="11" rx="2" fill="#22A06B"/><rect x="495" y="147" width="6" height="2" fill="#22A06B"/>
+<text x="475" y="172" text-anchor="middle" font-size="12" font-weight="500" fill="#14532D">3 hosts</text>
+
+<!-- axis ticks + numbers -->
+<line x1="70" y1="186" x2="70" y2="193" stroke="#D7DCE3"/><text x="70" y="205" text-anchor="middle" font-size="10.5" fill="#5B6470">0</text>
+<line x1="205" y1="186" x2="205" y2="193" stroke="#D7DCE3"/><text x="205" y="205" text-anchor="middle" font-size="10.5" fill="#5B6470">30</text>
+<line x1="340" y1="186" x2="340" y2="193" stroke="#D7DCE3"/><text x="340" y="205" text-anchor="middle" font-size="10.5" fill="#5B6470">60</text>
+<line x1="475" y1="186" x2="475" y2="193" stroke="#D7DCE3"/><text x="475" y="205" text-anchor="middle" font-size="10.5" fill="#5B6470">90</text>
+<line x1="610" y1="186" x2="610" y2="193" stroke="#D7DCE3"/><text x="610" y="205" text-anchor="middle" font-size="10.5" fill="#5B6470">120</text>
+<text x="340" y="222" text-anchor="middle" font-size="10.5" fill="#98A0AC">usuários conectados</text>
+
+<!-- SCALE-IN (below) -->
+<rect x="141" y="228" width="128" height="22" rx="6" fill="#FBE3D6" stroke="#C2410C"/>
+<text x="205" y="243" text-anchor="middle" font-size="11" fill="#9A3412">▼ desliga a 2ª · ≤30</text>
+<rect x="276" y="228" width="128" height="22" rx="6" fill="#FBE3D6" stroke="#C2410C"/>
+<text x="340" y="243" text-anchor="middle" font-size="11" fill="#9A3412">▼ desliga a 3ª · ≤60</text>
+<text x="40" y="266" font-size="11.5" font-weight="500" fill="#C2410C">SCALE-IN — usuários caindo ◀ DESLIGA host (ramp-down/off-peak)</text>
+
+<!-- Footer formula -->
+<rect x="40" y="282" width="600" height="80" rx="12" fill="#F5F7FA" stroke="#D7DCE3"/>
+<text x="56" y="302" font-size="12" font-weight="500" fill="#1F2430">Regra do gatilho:  (hosts ligados) × 40 sessões × 75% = ponto de virada</text>
+<text x="56" y="322" font-size="11" fill="#5B6470">1 host → 75% de 40 = 30  ⇒  2ª liga no 31.º usuário    ·    2 hosts → 75% de 80 = 60  ⇒  3ª liga no 61.º</text>
+<text x="56" y="340" font-size="11" fill="#5B6470">Descendo: desliga um host quando as sessões cabem nos restantes — ≤60 volta a 2 hosts, ≤30 volta a 1.</text>
+<text x="56" y="356" font-size="11" fill="#5B6470">A última máquina é desalocada no off-peak, quando esvazia (Min hosts = 0%).</text>
+</svg>
