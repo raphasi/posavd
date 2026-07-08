@@ -445,7 +445,15 @@ A imagem cuida do **estado inicial**; as **GPOs** garantem **conformidade contí
 3. Expanda `Forest → Domains → avdlab.local → OU AVD` → botão direito → **Create a GPO in this domain, and Link it here** → nome `GPO-AVD-Baseline`.
 4. Botão direito na GPO → **Edit** e configure, por exemplo:
    - **Idioma/Regional (reforço):** *Computer Configuration → Policies → Administrative Templates → Control Panel → Regional and Language Options* → force o idioma de exibição pt-BR.
-   - **Fuso horário:** *Computer Configuration → Preferences → Control Panel Settings → não há item direto; use* um item de registro/preferência ou a configuração de SO já vinda da imagem. (Em lab, o fuso da imagem já basta.)
+   - **Fuso horário (UTC-3 Brasília) para todos os hosts/usuários:** as VMs do Azure nascem em **UTC** e o Sysprep/deploy **não garante** a persistência do fuso — então o correto é **fixar por GPO no host** (o fuso é config **de máquina**, logo vale para todos os usuários). Não há política nativa "definir fuso"; use um **startup script**:
+     1. *Computer Configuration → Policies → Windows Settings → Scripts (Startup/Shutdown) → Startup → aba **PowerShell Scripts** → **Show Files*** (abre a pasta da GPO no SYSVOL) e crie `Set-TimeZone-BRT.ps1`:
+        ```powershell
+        Set-TimeZone -Id "E. South America Standard Time"
+        Set-Service -Name tzautoupdate -StartupType Disabled -ErrorAction SilentlyContinue
+        ```
+     2. **Add → Script Name:** `Set-TimeZone-BRT.ps1`. Roda no **boot**, como SYSTEM. Nos hosts: `gpupdate /force` + **reboot** (ou rode o `Set-TimeZone` manual uma vez para corrigir já).
+     - **Alternativa (GPP Immediate Task):** *Preferences → Control Panel Settings → Scheduled Tasks → New → Immediate Task (Windows 7+)* → **Run as `NT AUTHORITY\System`** + *highest privileges* → **Action:** `tzutil.exe` com argumentos `/s "E. South America Standard Time"`.
+     - **Alternativa AVD (fusos mistos):** se os usuários estiverem em fusos diferentes, em vez de fixar, habilite *Administrative Templates → Windows Components → Remote Desktop Services → Remote Desktop Session Host → Device and Resource Redirection → **Allow time zone redirection = Enabled*** (cada sessão herda o fuso do cliente).
    - **FSLogix (se ainda não configurado no Lab 05):** *Administrative Templates → FSLogix* (importe os ADMX do FSLogix em `\\avdlab.local\SYSVOL\...\PolicyDefinitions` se quiser gerenciar FSLogix por GPO).
    - **Segurança/UX AVD:** desabilitar tela de bloqueio por inatividade agressiva, configurar timeouts de sessão (*Administrative Templates → Windows Components → Remote Desktop Services → Remote Desktop Session Host → Session Time Limits*).
    - **Não armazenar perfis em roaming local** etc.
