@@ -2,7 +2,7 @@
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first)
-> **Resultado:** Cria-se um **AD DS próprio** (controlador de domínio em uma VM) sincronizado com o Entra ID, e um host pool com 2 hosts **domain-joined**. Esta estrutura é a base dos **Labs 04 a 07**.
+> **Resultado:** Cria-se um **AD DS próprio** (controlador de domínio em uma VM) sincronizado com o Entra ID, e um host pool com 2 hosts **domain-joined**. Esta estrutura é a base dos **Labs 04 a 08**.
 
 ---
 
@@ -29,7 +29,7 @@ flowchart LR
     E -->|"3 · autoriza conexão AVD"| HP
 ```
 
-> **Leitura:** o `vm-adds-prd-cin` é o controlador do domínio `avdlab.local`; os hosts ingressam nele. O **Entra Connect** sincroniza os usuários para o Entra ID (a autenticação do AVD sempre passa pela nuvem). Esta estrutura é reaproveitada pelos Labs 04, 05 e 06.
+> **Leitura:** o `vm-adds-prd-cin` é o controlador do domínio `avdlab.local`; os hosts ingressam nele. O **Entra Connect** sincroniza os usuários para o Entra ID (a autenticação do AVD sempre passa pela nuvem). Esta estrutura é reaproveitada pelos Labs 04 a 08.
 
 ---
 
@@ -238,7 +238,7 @@ As mesmas consoles do Lab 01 valem aqui: **Host pool → Sessions** (ver usuári
 ---
 
 ## Importante — não destrua esta estrutura
-Os **Labs 04 (SSO), 05 (FSLogix + private endpoints), 06 (imagem) e 07 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vm-adds-prd-cin` e `vdpool-avd-prd-cin-002` ativos.
+Os **Labs 04 (SSO), 05 (FSLogix + private endpoints), 06 (imagem), 07 (RemoteApp) e 08 (scaling plan)** reutilizam este domínio e host pool. Mantenha `vm-adds-prd-cin` e `vdpool-avd-prd-cin-002` ativos.
 
 ---
 

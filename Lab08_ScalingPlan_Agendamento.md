@@ -1,8 +1,8 @@
-# Lab 07 — Agendamento de startup/shutdown com Scaling Plan nativo do AVD
+# Lab 08 — Agendamento de startup/shutdown com Scaling Plan nativo do AVD
 
 > **Disciplina:** Azure Virtual Desktop — Pós-Graduação em Arquitetura Avançada em Azure
 > **Modalidade:** Passo a passo via Portal do Azure (portal-first).
-> **Dependência:** Um host pool existente — recomenda-se o **`vdpool-avd-prd-cin-002`** (Lab 03) e/ou `vdpool-avd-prd-cin-001` (Lab 01).
+> **Dependência:** Um host pool existente — recomenda-se o **`vdpool-avd-prd-cin-002`** (Lab 03), `vdpool-avd-prd-cin-003` (Lab 07 · RemoteApp) e/ou `vdpool-avd-prd-cin-001` (Lab 01).
 
 ---
 
