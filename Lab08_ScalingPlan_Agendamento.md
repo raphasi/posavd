@@ -280,5 +280,54 @@ O scale-out por **nº de usuários** precisa de **sessões**. Para forçar com p
 
 ---
 
+## 🧪 Anexo 2 — Demonstração guiada com 3 usuários (ligar → 2º host no login → pico → desligar)
+
+Cenário exato: o pool **liga no horário** com 1 host; ao **logar o 2º usuário sobe o 2º host**; no **pico** (com o 3º usuário) sobem os **3**; no **horário de desligamento** as sessões são derrubadas e os hosts desalocam.
+
+> 🔑 **O truque dos números:** com **Max session limit = 2** por host e **Capacity threshold = 60%**, o gatilho fica redondo para 3 usuários (fórmula: *sobe +1 host quando as sessões passam de `hosts × 2 × 60%`*):
+> - **1 usuário** → 1 sessão em 1 host = 50% → **fica 1 host**.
+> - **2 usuários** → 2 sessões / 1 host = 100% (> 60%) → **sobe o 2º host**.
+> - **3 usuários** → 3 sessões / 2 hosts = 75% (> 60%) → **sobe o 3º host**.
+
+### Pré-requisitos
+- Host pool **Pooled** com **3 hosts** (todos **deallocated** no início) e **Max session limit = 2** (Host pool → Properties).
+- **3 usuários de teste** atribuídos ao app group do pool (ex.: `user1/2/3` em `grp-avd-usuarios`), cada um com seu Windows App/credencial.
+- **Role de Autoscale** no SP *Azure Virtual Desktop* (Parte A) + **Scaling Plan** (Parte B) + **Time zone = (UTC-03:00) Brasília**.
+
+### Passo 1 — Schedule comprimido (ajuste os horários para minutos à frente do seu relógio)
+No Scaling Plan → **Schedules → + Add** para o dia atual:
+
+| Fase | Início (ex.) | Config |
+|------|--------------|--------|
+| **Ramp-up** | 14:05 | **Min hosts = 33%** (≈**1** de 3; se subir 2, use 20%) · **Capacity threshold = 60%** · Load balancing *Depth-first* |
+| **Peak** | 14:12 | **Capacity threshold = 60%** · *Breadth-first* |
+| **Ramp-down** | 14:28 | **Min hosts = 0%** · **Force logoff = Yes**, aguardar **1 min** · *Depth-first* |
+| **Off-peak** | 14:33 | **Capacity threshold = 60%** · *Depth-first* |
+
+### Passo 2 — Associar o plano e habilitar
+- Scaling Plan → **Host pool assignments → + Assign** → o pool de teste → **Enable autoscale = Yes**.
+
+### Passo 3 — Roteiro ao vivo (acompanhe em **Host pool → Session hosts** e **Virtual machines**)
+1. **14:05 — Ramp-up:** o pool **liga 1 host** (Min 33%). Aguarde ficar **Available**.
+2. **Conecte o usuário 1** (Windows App) → a sessão cai no **host 1** (1/2 = 50%) → **continua 1 host**.
+3. **Conecte o usuário 2** → uso passa de **60%** → em 1 avaliação (~min) o Autoscale **liga o 2º host**.
+4. **14:12 — Peak** · **conecte o usuário 3** → uso passa de 60% novamente → **liga o 3º host**. **3 hosts ligados** (no pico o Autoscale mantém — não desliga).
+5. **14:28 — Ramp-down:** com **Force logoff**, as **sessões são derrubadas** (aviso + 1 min); com **Min 0%**, os hosts **desalocam** conforme esvaziam.
+6. **14:33 — Off-peak:** os **3 hosts** ficam **Stopped (deallocated)** → custo de compute zero.
+
+> ⚠️ **Sobre "o pico sobe o 3º host":** o Peak **não** tem "% mínimo" — quem sobe o 3º host é a **carga** (o 3º usuário). Por isso conecte o 3º usuário **no início do Peak**: fica visualmente "no pico subiu o 3º". Se ninguém logar, o Peak **não** força os 3.
+>
+> ⏱️ O Autoscale avalia em **ciclos de alguns minutos** — dê intervalo entre cada login e entre as fases; a subida/queda de host não é instantânea.
+
+### Passo 4 — Comprovar
+- **Host pool → Session hosts:** nº de hosts disponíveis subindo 1 → 2 → 3 e depois caindo.
+- **VM → Activity log:** operações **Start / Deallocate** iniciadas por **Azure Virtual Desktop** (o SP), provando que foi o Autoscale.
+- (se ativou **H.1**) `WVDAutoscaleEvaluationPooled` mostra, por avaliação, o motivo de cada decisão.
+
+### Limpeza
+- **Desabilite** o autoscale no pool (ou desassocie o plano), **deallocate** os hosts e, se foi pool dedicado de teste, **exclua-o**.
+
+---
+
 ## Fim da trilha
 Você construiu, via portal: host pools Entra ID e AD DS, FSLogix nos dois modelos de identidade, imagem customizada pt-BR e agendamento de energia. Ao encerrar, **desaloque ou exclua** os recursos para evitar cobrança (ver seção de limpeza em cada lab).
