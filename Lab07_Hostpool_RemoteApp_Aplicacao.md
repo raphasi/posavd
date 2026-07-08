@@ -126,11 +126,13 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 **Método recomendado — File path:**
 1. **Application groups → (o RemoteApp group) → Applications → + Add**.
 2. **Application source:** **File path**.
-   - **Application name:** `notepad` ← **sem `+`** (é o nome do recurso; aqui você controla, ao contrário do Start menu).
+   - **Application identifier:** `notepad` ← **sem `+`** (é o identificador/nome do recurso; aqui você controla, ao contrário do Start menu).
    - **Application path:** `C:\Program Files\Notepad++\notepad++.exe` *(confirme o caminho no host; ver nota)*.
    - **Icon path:** `C:\Program Files\Notepad++\notepad++.exe` · **Icon index:** `0`.
    - **Display name:** `Notepad++` (o que o usuário vê; se o portal recusar o `++` aqui, use `Notepad Plus Plus`).
-3. **Save / Add**.
+3. **Icon** (aba): aponte para o mesmo exe (`C:\Program Files\Notepad++\notepad++.exe`, index `0`). **Review + add**.
+
+> 📝 No portal, esse campo aparece como **"Application identifier"** (obrigatório) — é ele que vira o nome do recurso e **não aceita `+`**.
 
 **Alternativa — CLI (100% determinístico):**
 ```bash
