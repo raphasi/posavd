@@ -89,12 +89,33 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 
 ---
 
-## Parte B — Confirmar o host e localizar o Application Group
+## Parte B — Confirmar o host e criar/registrar o Application Group (assistente completo)
 
 1. **Host pools → `vdpool-avd-prd-cin-003` → Session hosts:** o host `vmavdapp-cin-0` deve ficar **Available** (aguarde o agente registrar).
-2. **Azure Virtual Desktop → Application groups:** localize o app group **RemoteApp** criado pelo assistente (vinculado ao `vdpool-avd-prd-cin-003`).
-   - Se o nome gerado for genérico, você pode **renomear** para `vdag-avd-prd-cin-003` (Application group → não é editável após criado; se quiser o nome exato, crie o app group manualmente — ver nota).
-   > 💡 **Quer o nome exato `vdag-avd-prd-cin-003`?** O assistente nomeia o app group automaticamente. Para ter o nome padronizado, você pode **criar o Application Group manualmente** (*Application groups → + Create → Application group type: RemoteApp → Host pool: vdpool-avd-prd-cin-003 → Name: vdag-avd-prd-cin-003*) e registrá-lo no workspace. Em lab, usar o gerado pelo assistente também é válido.
+2. O assistente do host pool (Parte A, com *Register application group = Yes*) **já cria e registra** um app group RemoteApp. Se preferir criar **manualmente** (para ter o nome padronizado `vdag-avd-prd-cin-003` ou para entender a tela completa), vá em **Application groups → + Create**. A tela tem **6 abas** — preencha assim:
+
+**① Basics**
+- **Subscription / Resource group:** `rg-avd-prd-cin-001`.
+- **Host pool:** `vdpool-avd-prd-cin-003` (o pool RemoteApp).
+- **Location:** a **mesma região dos metadados** do host pool (onde os objetos AVD foram criados; ex.: Central India).
+- **Application group type:** **RemoteApp**.
+- **Application group name:** `vdag-avd-prd-cin-003`.
+
+**② Applications** — adicione o **Notepad++** aqui (ou depois, na Parte C). Os campos são os mesmos da **Parte C**.
+
+**③ Assignments** — adicione o grupo **`grp-avd-usuarios`** (pode deixar vazio e atribuir depois, na **Parte D**).
+
+**④ Workspace — `Register application group`** → **Yes** (⚠️ **essencial**: sem registrar, o app **não aparece** para o usuário no Windows App).
+- **Se o host pool ainda NÃO tem** nenhum app group registrado → escolha/crie o workspace **`vdws-avd-prd-cin-001`**.
+- **Se JÁ existe** um app group daquele host pool registrado (ex.: o **Desktop** do Lab 03), o portal mostra *"Another application group in `vdpool-...` has already been registered, so this app group will also be registered to that same workspace"* e o dropdown fica **vazio ("no available workspaces")**. **Isso é normal:** todos os app groups de um **mesmo host pool** compartilham **UM único workspace** — ele **registra automaticamente** no workspace existente. Deixe **Yes** e siga.
+
+**⑤ Advanced** — deixe o **padrão** (aqui ficam opções de diagnóstico/telemetria, dispensáveis no lab).
+
+**⑥ Tags** — opcional (ex.: `ambiente=lab`).
+
+**Review + create → Create.**
+
+> ⚠️ **Desktop + RemoteApp no mesmo host pool:** se publicar RemoteApp num pool que **já tem** um app group **Desktop** (ex.: o `vdpool-avd-prd-cin-002` do Lab 03), lembre que **um mesmo usuário não pode** estar atribuído aos **dois tipos** no mesmo pool. Por isso este lab usa o pool dedicado **`003`** para RemoteApp. Se for demo com **usuários diferentes**, o mesmo pool serve.
 
 ---
 
