@@ -119,20 +119,31 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 
 ---
 
-## Parte C — Publicar o Notepad++ como RemoteApp
+## Parte C — Publicar o Notepad++ como RemoteApp (via **File path**)
 
-> ⚠️ **Notepad++ tem `+` no nome — publique por File path, NÃO pelo "Start menu".** No modo *App from Start menu*, o portal usa o **próprio nome do app ("Notepad++") como nome do recurso** e **não deixa você sobrescrever** — como o `+` é inválido no nome de recurso, o *Add application* falha com `BadRequest` / *"Failed to add application"*. (Apps sem caractere especial, como o **7-Zip**, funcionam normalmente pelo Start menu.)
+> ⚠️ **O Notepad++ tem que ser publicado por "File path", NÃO pelo "Start menu".** No modo *App from Start menu*, o portal usa o **nome do próprio app ("Notepad++") como identificador do recurso** e **não deixa você sobrescrever** — como o `+` é inválido no identificador, o *Add application* falha com `BadRequest` / *"Failed to add application"*. Apps **sem** caractere especial (ex.: **7-Zip**) podem usar o Start menu normalmente.
 
-**Método recomendado — File path:**
-1. **Application groups → (o RemoteApp group) → Applications → + Add**.
-2. **Application source:** **File path**.
-   - **Application identifier:** `notepad` ← **sem `+`** (é o identificador/nome do recurso; aqui você controla, ao contrário do Start menu).
-   - **Application path:** `C:\Program Files\Notepad++\notepad++.exe` *(confirme o caminho no host; ver nota)*.
-   - **Icon path:** `C:\Program Files\Notepad++\notepad++.exe` · **Icon index:** `0`.
-   - **Display name:** `Notepad++` (o que o usuário vê; se o portal recusar o `++` aqui, use `Notepad Plus Plus`).
-3. **Icon** (aba): aponte para o mesmo exe (`C:\Program Files\Notepad++\notepad++.exe`, index `0`). **Review + add**.
+1. **Application groups → (o RemoteApp group, ex. `vdag-avd-prd-cin-003`) → Applications → + Add**.
 
-> 📝 No portal, esse campo aparece como **"Application identifier"** (obrigatório) — é ele que vira o nome do recurso e **não aceita `+`**.
+2. Aba **Basics:**
+
+| Campo | Valor |
+|-------|-------|
+| **Application source** | **File path** |
+| **Application path** | `C:\Program Files\Notepad++\notepad++.exe` |
+| **Application identifier** | `notepad` ← **sem `+`** (vira o nome do recurso; é o campo que rejeitava o `Notepad++`) |
+| **Display name** | `Notepad++` (o que o usuário vê) |
+| **Description** | opcional (ex.: `Editor de texto e código`) |
+| **Require command line** | desmarcado |
+
+3. Aba **Icon:**
+   - **Icon path:** `C:\Program Files\Notepad++\notepad++.exe`
+   - **Icon index:** `0`
+   > O próprio `.exe` já contém o ícone — não precisa de arquivo `.ico` separado.
+
+4. **Review + add → Add.**
+
+> 🔎 **Confirme o caminho no host** (RDP num host da imagem): `Test-Path "C:\Program Files\Notepad++\notepad++.exe"`. Se o Notepad++ for 32-bit, use `C:\Program Files (x86)\Notepad++\notepad++.exe`.
 
 **Alternativa — CLI (100% determinístico):**
 ```bash
@@ -143,9 +154,7 @@ az desktopvirtualization application create \
   --icon-path "C:\Program Files\Notepad++\notepad++.exe" --icon-index 0
 ```
 
-> 🔎 **Confirme o caminho no host** (RDP num host da imagem): `Test-Path "C:\Program Files\Notepad++\notepad++.exe"`. Se o Notepad++ for 32-bit, o caminho é `C:\Program Files (x86)\Notepad++\notepad++.exe`.
->
-> 💡 **Para apps SEM caractere especial** (7-Zip, etc.) o modo **Start menu** funciona bem: *Application source = Start menu → selecione o app → Display name → Add* (requer um host **Available e ligado**, pois a lista é lida do host em tempo real).
+> 💡 **Publicar apps do Start menu (sem `+` no nome):** para 7-Zip e afins, *Application source = Start menu → selecione o app → Display name → Add* funciona bem — requer um host **Available e ligado** (a lista é lida do host em tempo real).
 
 ## Parte D — Atribuir acesso ao usuário
 
