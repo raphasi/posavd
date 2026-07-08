@@ -121,20 +121,29 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 
 ## Parte C — Publicar o Notepad++ como RemoteApp
 
-1. **Application groups → (o RemoteApp group do host pool 003) → Applications → + Add**.
-2. **Application source:** **Start menu** (a lista é lida do host — como o Notepad++ foi instalado **por máquina** na imagem, ele aparece aqui).
-   - **Application:** selecione **Notepad++** na lista.
-   - **Application name** (nome do recurso): **`notepad`** — ⚠️ **sem `+`**! O portal auto-preenche como `Notepad++`, mas o nome do recurso **não aceita `+`** (senão dá `BadRequest`). Troque para `notepad` (ou `npp`).
-   - **Display name:** `Notepad++` (nome que o usuário vê — aqui o `++` é permitido).
-   - **Description:** opcional (ex.: "Editor de texto e código").
-3. Deixe **Icon path** / **Icon index** no padrão (herda do app) e clique em **Save / Add**.
+> ⚠️ **Notepad++ tem `+` no nome — publique por File path, NÃO pelo "Start menu".** No modo *App from Start menu*, o portal usa o **próprio nome do app ("Notepad++") como nome do recurso** e **não deixa você sobrescrever** — como o `+` é inválido no nome de recurso, o *Add application* falha com `BadRequest` / *"Failed to add application"*. (Apps sem caractere especial, como o **7-Zip**, funcionam normalmente pelo Start menu.)
 
-> **Alternativa — por caminho de arquivo:** se o Notepad++ não aparecer na lista do menu Iniciar, use **Application source = File path** e informe:
-> - **Application path:** `C:\Program Files\Notepad++\notepad++.exe`
-> - **Application name:** `notepad` (sem `+`) · **Display name:** `Notepad++`
-> (Confirme o caminho no host: `Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*","HKLM:\SOFTWARE\WOW6432Node\...\Uninstall\*" | ? DisplayName -match "Notepad\+\+" | Select DisplayName, InstallLocation`.)
+**Método recomendado — File path:**
+1. **Application groups → (o RemoteApp group) → Applications → + Add**.
+2. **Application source:** **File path**.
+   - **Application name:** `notepad` ← **sem `+`** (é o nome do recurso; aqui você controla, ao contrário do Start menu).
+   - **Application path:** `C:\Program Files\Notepad++\notepad++.exe` *(confirme o caminho no host; ver nota)*.
+   - **Icon path:** `C:\Program Files\Notepad++\notepad++.exe` · **Icon index:** `0`.
+   - **Display name:** `Notepad++` (o que o usuário vê; se o portal recusar o `++` aqui, use `Notepad Plus Plus`).
+3. **Save / Add**.
 
----
+**Alternativa — CLI (100% determinístico):**
+```bash
+az desktopvirtualization application create \
+  -g rg-avd-prd-cin-001 --application-group-name <NOME_DO_APP_GROUP> \
+  -n notepad --friendly-name "Notepad++" --command-line-setting DoNotAllow \
+  --file-path "C:\Program Files\Notepad++\notepad++.exe" \
+  --icon-path "C:\Program Files\Notepad++\notepad++.exe" --icon-index 0
+```
+
+> 🔎 **Confirme o caminho no host** (RDP num host da imagem): `Test-Path "C:\Program Files\Notepad++\notepad++.exe"`. Se o Notepad++ for 32-bit, o caminho é `C:\Program Files (x86)\Notepad++\notepad++.exe`.
+>
+> 💡 **Para apps SEM caractere especial** (7-Zip, etc.) o modo **Start menu** funciona bem: *Application source = Start menu → selecione o app → Display name → Add* (requer um host **Available e ligado**, pois a lista é lida do host em tempo real).
 
 ## Parte D — Atribuir acesso ao usuário
 
