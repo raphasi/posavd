@@ -124,13 +124,14 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 1. **Application groups → (o RemoteApp group do host pool 003) → Applications → + Add**.
 2. **Application source:** **Start menu** (a lista é lida do host — como o Notepad++ foi instalado **por máquina** na imagem, ele aparece aqui).
    - **Application:** selecione **Notepad++** na lista.
-   - **Display name:** `Notepad++` (nome que o usuário vê).
+   - **Application name** (nome do recurso): **`notepad`** — ⚠️ **sem `+`**! O portal auto-preenche como `Notepad++`, mas o nome do recurso **não aceita `+`** (senão dá `BadRequest`). Troque para `notepad` (ou `npp`).
+   - **Display name:** `Notepad++` (nome que o usuário vê — aqui o `++` é permitido).
    - **Description:** opcional (ex.: "Editor de texto e código").
 3. Deixe **Icon path** / **Icon index** no padrão (herda do app) e clique em **Save / Add**.
 
 > **Alternativa — por caminho de arquivo:** se o Notepad++ não aparecer na lista do menu Iniciar, use **Application source = File path** e informe:
 > - **Application path:** `C:\Program Files\Notepad++\notepad++.exe`
-> - **Application name:** `notepad++` · **Display name:** `Notepad++`
+> - **Application name:** `notepad` (sem `+`) · **Display name:** `Notepad++`
 > (Confirme o caminho no host: `Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*","HKLM:\SOFTWARE\WOW6432Node\...\Uninstall\*" | ? DisplayName -match "Notepad\+\+" | Select DisplayName, InstallLocation`.)
 
 ---
@@ -163,6 +164,7 @@ No AVD, um host pool entrega o recurso ao usuário de uma de duas formas:
 
 | Sintoma | Causa | Correção |
 |---------|-------|----------|
+| **`BadRequest` ao adicionar a aplicação** (*resource... removed/name changed*) | O **Application name** (nome do recurso) tem caractere inválido — ex.: `Notepad++` (o `+` não é aceito) | Use **Application name = `notepad`** (só letras/números/hífen) e deixe o `Notepad++` apenas no **Display name** |
 | Notepad++ não aparece na lista do menu Iniciar (Parte C) | App instalado por usuário (MSIX) em vez de por máquina, ou host ainda não pronto | Use a imagem do Lab 06 (Notepad++ via **instalador clássico por máquina**); ou publique por **File path** `C:\Program Files\Notepad++\notepad++.exe` |
 | Usuário vê **desktop** em vez do app | O usuário está atribuído a um app group **Desktop** do mesmo/outro host pool | Um usuário não pode ter Desktop + RemoteApp no mesmo host pool; garanta que ele está só no app group **RemoteApp** (003) |
 | Recurso não aparece no Windows App | App group não atribuído ao usuário, ou não registrado no workspace | Parte D (Assignments) + confirmar **Register** no `vdws-avd-prd-cin-001` |
