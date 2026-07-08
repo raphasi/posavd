@@ -523,4 +523,4 @@ Para confirmar que a imagem funciona, adicione um host ao pool do Lab 03 usando 
 ---
 
 ## Próximo lab
-➡️ **Lab 07 — Host Pool de Aplicação (RemoteApp)** para publicar o **draw.io** desta imagem como aplicativo isolado (e depois o **Lab 08 — Scaling Plan**).
+➡️ **Lab 07 — Host Pool de Aplicação (RemoteApp)** para publicar o **Notepad++** desta imagem como aplicativo isolado (e depois o **Lab 08 — Scaling Plan**).
