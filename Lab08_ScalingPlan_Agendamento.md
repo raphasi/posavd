@@ -223,5 +223,62 @@ Com expediente 07:00–18:00 em dias úteis, hosts ligados ~11h/dia × 5 dias �
 
 ---
 
+## 🧪 Anexo — Teste do Autoscale em laboratório SEM usuários (host pool com 3 hosts)
+
+Objetivo: **ver os hosts ligando (start) e desalocando (deallocate)** dirigidos pelo **schedule** e pelo **% mínimo de hosts**, sem precisar de usuários reais conectados. Ótimo para validar/demonstrar em aula em ~20 min.
+
+> **O que dá e o que não dá para testar sem usuários:**
+> - ✅ **Ligar/desligar por horário + Min hosts %** (dirigido pelo schedule) — funciona **sem ninguém conectado**.
+> - ⚠️ **Scale-out por carga** (2ª host no 31.º usuário, 3ª no 61.º — ver desenho *"gatilhos por usuários"*) — **exige sessões reais**; sem usuários não dispara. Veja o item **opcional** no fim para simular com 1–2 testers.
+
+> 📌 **Terminologia:** aqui é **1 host pool com 3 hosts (máquinas)** — o Autoscale escala o **nº de hosts dentro de um pool**, não pools separados.
+
+### Pré-requisitos do teste
+- Um host pool **Pooled** com **3 session hosts** (ex.: adicione um 3º host ao `vdpool-avd-prd-cin-002`, **ou** crie um pool de teste `vdpool-test-cin-001` com 3 VMs pequenas `Standard_B2s`).
+- **Role de Autoscale** atribuída ao SP *Azure Virtual Desktop* (**Parte A**) e um **Scaling Plan** criado (**Parte B**).
+- **Time zone do Scaling Plan = (UTC-03:00) Brasília** (senão os horários não batem com o seu relógio).
+
+### Passo 1 — Anote a hora e o estado inicial
+- No pool → **Session hosts** e em **Virtual machines** veja o **power state** dos 3 hosts.
+- Anote a **hora atual** (ex.: **14:00**) — vamos programar as fases minutos à frente.
+
+### Passo 2 — Configure um schedule COMPRIMIDO (fases minutos à frente)
+No Scaling Plan → **Schedules → + Add** (ou edite), para o **dia da semana atual**, com ~**5 min entre fases**:
+
+| Fase | Início (ex.) | Config para o teste |
+|------|--------------|---------------------|
+| **Ramp-up** | 14:05 | **Min hosts = 100%** · Capacity threshold 75% · Load balancing *Depth-first* |
+| **Peak** | 14:10 | Capacity threshold 75% · *Breadth-first* |
+| **Ramp-down** | 14:15 | **Min hosts = 0%** · **Force logoff = Yes**, aguardar **1 min** · *Depth-first* |
+| **Off-peak** | 14:20 | Capacity threshold 75% · *Depth-first* |
+
+> **Por que `Min hosts = 100%` no ramp-up?** Sem usuários, o que **liga** os hosts é o **% mínimo**. Com 100% você vê os **3 hosts ligarem**. Quer ver ligar **parcial**? Use **34% ≈ 1 host** ou **67% ≈ 2 hosts**.
+
+### Passo 3 — Associe o plano ao pool e habilite
+- Scaling Plan → **Host pool assignments → + Assign** → escolha o pool de teste → **Enable autoscale = Yes**.
+
+### Passo 4 — Assista ao vivo (sem usuários)
+Deixe abertos **Virtual machines** (power state) e **Host pool → Session hosts**:
+- **14:05 (ramp-up):** os **3 hosts ligam** (Running / Available) — puxados pelo Min 100%.
+- **14:15 (ramp-down):** com Min 0% + force logoff, o Autoscale começa a **desalocar**.
+- **14:20 (off-peak):** os **3 hosts ficam Stopped (deallocated)** → custo de compute zero.
+
+> ⏱️ O Autoscale avalia em **ciclos de alguns minutos** — deixe ~5 min entre fases e espere alguns minutos após cada transição. Para **repetir**, empurre os horários do schedule à frente de novo.
+
+### Passo 5 — Comprovar que foi o Autoscale
+- **VM → Activity log** (ou **Host pool → Session hosts**): as operações **Start Virtual Machine** / **Deallocate Virtual Machine** aparecem **iniciadas pelo *Azure Virtual Desktop*** (service principal) — prova de que o schedule agiu.
+- Se ativou o diagnóstico (**H.1**): `WVDAutoscaleEvaluationPooled` no Log Analytics mostra a decisão de cada avaliação.
+
+### (Opcional) Testar o scale-out por CARGA com poucos testers
+O scale-out por **nº de usuários** precisa de **sessões**. Para forçar com pouca gente:
+- No host pool, baixe o **Max session limit para `1`** (cada usuário "enche" um host).
+- Conecte **2 usuários de teste** → o 2º força o Autoscale a **ligar o 2º host**; um 3º força o 3º. É a régua do desenho *"gatilhos por usuários"*, só que com limite **1** em vez de 40.
+
+### Limpeza do teste
+- **Desabilite** o autoscale no pool (ou desassocie o plano) e **deallocate** os hosts de teste para não gerar custo.
+- Se criou o pool de teste dedicado (`vdpool-test-cin-001`), **exclua-o** (pool + VMs + discos).
+
+---
+
 ## Fim da trilha
 Você construiu, via portal: host pools Entra ID e AD DS, FSLogix nos dois modelos de identidade, imagem customizada pt-BR e agendamento de energia. Ao encerrar, **desaloque ou exclua** os recursos para evitar cobrança (ver seção de limpeza em cada lab).
