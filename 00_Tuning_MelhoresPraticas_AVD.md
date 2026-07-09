@@ -170,8 +170,77 @@ Sessões **desconectadas** que ficam presas impedem o host de esvaziar — e, se
 
 ---
 
+## 10) Onde estão os logs e como fazer troubleshooting
+
+### FSLogix (perfil do usuário)
+| Onde | Caminho / local | O que tem |
+|------|-----------------|-----------|
+| **Logs em disco** | `C:\ProgramData\FSLogix\Logs\` (subpastas `Profile`, `ODFC`, `Service`, `Search`, `RuleCompilation`…) | Cada anexação/liberação de container, motivo de falha, tempo de montagem. **Primeiro lugar** a olhar em problema de perfil. |
+| **Nível de log** | `HKLM\SOFTWARE\FSLogix\Logging` → `LoggingEnabled=1`, `LogDir`, `LogFileKeepingPeriod` | Para aumentar o detalhe em investigações. |
+| **Event Viewer** | *Applications and Services Logs → **FSLogix → Apps** (Operational e Admin)* | Eventos de montagem, perfil temporário, container locked. |
+| **Ferramenta `frx`** | `C:\Program Files\FSLogix\Apps\frx.exe` | `frx version`, `frx list-redirects` etc. — diagnóstico do redirecionamento/estado. |
+
+> Sintomas típicos: **perfil temporário** ou **"container locked"** → confira as chaves das seções **1** (perfil local/temp) e **3** (tempo de montagem / `CleanupInvalidSessions`).
+
+### Agente do AVD e registro do host
+| Onde | Caminho / local | O que tem |
+|------|-----------------|-----------|
+| **Instalação/registro** | `C:\Program Files\Microsoft RDInfra\` → `AgentInstall.txt`, `GenevaInstall.txt`, `SXSStackInstall.txt` | Falhas de instalação do agente / stack / token de registro. |
+| **Event Viewer** | *Applications and Services Logs → Microsoft → Windows → **RemoteDesktopServices*** e *Windows Logs → Application* (fontes **WVD Agent**, **RDAgentBootLoader**) | Heartbeat, registro no broker, erros do agente. |
+
+> **Host "Unavailable"** geralmente é **token de registro expirado** ou **agente sem heartbeat** → regenere o *registration token* do host pool e reinstale o agente, ou confira DNS/linha até o broker.
+
+### Sistema operacional (imagem, join, idioma)
+| Sintoma | Log |
+|---------|-----|
+| **Domain join** falha | `%WINDIR%\debug\NetSetup.LOG` |
+| **Sysprep** falha | `C:\Windows\System32\Sysprep\Panther\setuperr.log` (só erros) e `setupact.log` (completo) — ver **Lab 06** |
+| **Idioma / DISM** | `C:\Windows\Logs\DISM\dism.log` |
+| **Perfil do Windows** | *Event Viewer → Applications and Services Logs → Microsoft → Windows → **User Profile Service*** |
+
+### Azure Monitor / AVD Insights (visão centralizada)
+Habilite **Diagnostic settings** no Host pool/Workspace apontando para um **Log Analytics** (`log-avd-prd-cin-001`); depois use **Host pool → Insights** (workbook nativo do AVD). Consultas (Kusto) nas tabelas:
+
+| Tabela | Para quê |
+|--------|----------|
+| `WVDConnections` | conexões (início/fim, duração, usuário, host) |
+| `WVDErrors` | erros de agente e de conexão |
+| `WVDCheckpoints` | **etapas** da conexão — mostra **onde travou** |
+| `WVDConnectionNetworkData` | latência/RTT do RDP (experiência) |
+| `WVDAgentHealthStatus` | saúde do agente / host |
+| `WVDHostRegistrations` | registro do host no serviço |
+| `WVDManagement` / `WVDFeeds` | operações de gestão / feed do workspace |
+| `WVDAutoscaleEvaluationPooled` | decisões do **Scaling Plan** (Lab 08) |
+
+> **Activity log** (na VM/Host pool): operações **Start / Deallocate / Create / Delete** — quem e quando (útil para provar que foi o Autoscale).
+
+### Cliente (Windows App / Área de Trabalho Remota)
+- Se a conexão falha só num cliente, teste pelo **web client** (`https://windows.cloud.microsoft/`) para **isolar cliente × serviço**.
+- Reinstale/atualize o **Windows App**; confira credencial/UPN (ver nota de UPN do Lab 03/04).
+
+### 🔎 Fluxo de diagnóstico por sintoma
+| Sintoma | 1º lugar | Depois |
+|---------|----------|--------|
+| Usuário não loga / perfil temporário | `C:\ProgramData\FSLogix\Logs` + Event **FSLogix/Operational** | chaves das seções **1** e **3** |
+| Host **Unavailable** | `AgentInstall.txt` + Event **RemoteDesktopServices** | `WVDAgentHealthStatus`, regenerar token |
+| Conexão cai / lenta | `WVDConnections`, `WVDErrors`, `WVDCheckpoints` | `WVDConnectionNetworkData` + Insights |
+| Não liga/desliga (Autoscale) | `WVDAutoscaleEvaluationPooled` + Activity log | **Lab 08** (role do SP, threshold, min %) |
+| **Sysprep** falha | `setuperr.log` (Panther) | **Lab 06** |
+| **Domain join** falha | `NetSetup.LOG` | DNS da VNet + OU correta |
+| App RemoteApp não abre | Event **RemoteDesktopServices** no host | caminho/identifier do app (**Lab 07**) |
+
+### Hubs oficiais de troubleshooting
+- **AVD — Troubleshooting overview** e guias por área (conexão, agente, FSLogix, perfis).
+- **FSLogix — Troubleshooting** (serviços `frxsvc`/`frxccds`, containers, corrupção).
+- **AVD — Monitor / Insights** (Azure Monitor for Azure Virtual Desktop).
+
+---
+
 ## Referências (Microsoft Learn)
 - [FSLogix — Configuration settings reference (todas as chaves)](https://learn.microsoft.com/en-us/fslogix/reference-configuration-settings)
+- [FSLogix — Troubleshooting (serviços, containers)](https://learn.microsoft.com/en-us/fslogix/troubleshooting-fslogix-service)
+- [AVD — Troubleshooting overview](https://learn.microsoft.com/en-us/azure/virtual-desktop/troubleshoot-set-up-overview)
+- [AVD — Use Log Analytics / Insights (tabelas WVD*)](https://learn.microsoft.com/en-us/azure/virtual-desktop/insights)
 - [FSLogix — Prerequisites (exclusões de antivírus)](https://learn.microsoft.com/en-us/fslogix/overview-prerequisites)
 - [Defender — Exclusions on Windows Server](https://learn.microsoft.com/en-us/defender-endpoint/configure-server-exclusions-microsoft-defender-antivirus)
 - [FSLogix — Configuration examples](https://learn.microsoft.com/en-us/fslogix/concepts-configuration-examples)
